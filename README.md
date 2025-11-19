@@ -1,5 +1,5 @@
 # AI-powered-visual-storytelling-telling-journal-
-Steps 
+Steps <br/>
 First run the backend folder <br/>
 create .env file in server folder  in backend folder<br/>
 and paste the code that I sent through mail  <br/>
