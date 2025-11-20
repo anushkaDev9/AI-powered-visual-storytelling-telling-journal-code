@@ -1,16 +1,30 @@
 // db.js
 import { Firestore } from "@google-cloud/firestore";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const projectId =
-  process.env.FIRESTORE_PROJECT_ID ||
-  process.env.GOOGLE_CLOUD_PROJECT ||
-  process.env.GCLOUD_PROJECT;
+// Fix ES module dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-if (!projectId) {
-  throw new Error("No projectId resolved. Set FIRESTORE_PROJECT_ID in .env");
-}
+// Load JSON manually (this fixes newline issues)
+const serviceAccountPath = path.join(__dirname, "aivisionstoryjournal-478317-firebase-adminsdk-fbsvc-f19b18ddaa.json");
+const serviceAccountRaw = fs.readFileSync(serviceAccountPath, "utf8");
+const serviceAccount = JSON.parse(serviceAccountRaw);
 
-export const db = new Firestore({ projectId });
+// Fix private key: replace escaped \n with real newlines
+serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
+
+export const db = new Firestore({
+  projectId: serviceAccount.project_id,
+  credentials: {
+    client_email: serviceAccount.client_email,
+    private_key: serviceAccount.private_key,
+  },
+});
+
+// ----------- FUNCTIONS -----------
 
 export async function upsertUser(sub, data) {
   await db.collection("users").doc(sub).set(
@@ -24,7 +38,6 @@ export async function upsertUser(sub, data) {
   );
 }
 
-// ✅ NEW: implement the function you import in server.js
 export async function userExistsByEmail(email) {
   const snap = await db
     .collection("users")
