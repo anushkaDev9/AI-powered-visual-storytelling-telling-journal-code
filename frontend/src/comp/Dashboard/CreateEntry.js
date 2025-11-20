@@ -65,6 +65,7 @@ const CreateEntry = ({ setView }) => {
 
       localStorage.setItem("AI_NARRATIVE", data.narrative);
       alert("Narrative generated!");
+      setView("compose")
     } catch (error) {
       console.error("Error:", error);
       alert("Failed to send request.");
