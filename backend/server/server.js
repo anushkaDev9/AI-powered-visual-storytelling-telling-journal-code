@@ -5,6 +5,10 @@ import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import aiRoutes from "./ai.js";
 import { upsertUser, userExistsByEmail } from "./db.js";   // ✅ REAL DB FUNCTIONS
+import generateNarrativeRouter from "./ai.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+
 
 dotenv.config();
 
@@ -142,6 +146,8 @@ app.use((err, _req, res, _next) => {
   console.error("❌ Server error:", err);
   res.status(500).json({ error: "server_error", detail: String(err) });
 });
+
+app.use("/api/generate-narrative", generateNarrativeRouter);
 
 app.listen(PORT, () => {
   console.log(`API at http://localhost:${PORT}`);
