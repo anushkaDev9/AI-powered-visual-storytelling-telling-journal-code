@@ -139,6 +139,42 @@ app.get("/api/user/exists", async (req, res, next) => {
   }
 });
 
+// Simple email/password sign-in (demo, no real password checks)
+app.post("/api/signin", async (req, res, next) => {
+  try {
+    const { email, password } = req.body || {};
+    const trimmed = typeof email === "string" ? email.trim() : "";
+    if (!trimmed) return res.status(400).json({ error: "missing_email" });
+
+    // NOTE: This demo does not validate passwords. In a real app you must
+    // - store hashed passwords
+    // - verify credentials
+    // - rate-limit and protect endpoints
+
+    const sub = `local:${trimmed}`; // use a unique key for local users
+
+    // create/update user record (upsertUser comes from ./db.js)
+    await upsertUser(sub, {
+      email: trimmed,
+      name: trimmed.split("@")[0] || trimmed,
+      picture: null,
+      provider: "local",
+    });
+
+    // store a minimal profile in session so frontend can call /api/profile
+    req.session.profile = {
+      sub,
+      email: trimmed,
+      name: trimmed.split("@")[0] || trimmed,
+      picture: null,
+    };
+
+    res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
 /* AI routes */
 app.use("/ai", aiRoutes);
 
