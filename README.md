@@ -9,5 +9,5 @@ run npm install <br/>
 npm start or node server.js<br/>
 Then run the frontend <br/>
 open the frontend folder in command prompt <br/>
-rn npm install<br/>
+run npm install<br/>
 npm start - to start the application <br/>
