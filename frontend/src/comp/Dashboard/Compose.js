@@ -1,19 +1,66 @@
 import React, { useState } from 'react';
 import Page from '../Page';
 
-const Compose = ({ setView }) => {
+const Compose = ({ setView, sharedImage }) => {
   const [text, setText] = useState(() => {
     return localStorage.getItem("AI_NARRATIVE") || "";
   });
 
-  const styles = ["First-Person (I Perspective)", "Third-Person (Story Mode)", "Formal / Descriptive", "Creative / Poetic"];
+  // State for regeneration
+  const [perspective, setPerspective] = useState("first");
+  const [tone, setTone] = useState("formal");
+  const [loading, setLoading] = useState(false);
+
+  const API_BASE = "http://localhost:3000";
+
+  const handleRegenerate = async () => {
+    if (!sharedImage) {
+      alert("No image found for regeneration. Please start over from Create Entry.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", sharedImage);
+      formData.append("perspective", perspective);
+      formData.append("tone", tone);
+      formData.append("lineCount", 10); // Default or could be passed
+      // Context is lost here unless we share it too, but user asked to change tone/perspective
+
+      const response = await fetch(`${API_BASE}/ai/generate-narrative`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.narrative) {
+        setText(data.narrative);
+        localStorage.setItem("AI_NARRATIVE", data.narrative);
+        alert("Narrative regenerated!");
+      } else {
+        alert("Failed to regenerate narrative.");
+      }
+    } catch (error) {
+      console.error("Regeneration error:", error);
+      alert("Error regenerating narrative.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const styles = [
+    { id: "first", label: "First-Person (I Perspective)", type: "perspective" },
+    { id: "third", label: "Third-Person (Story Mode)", type: "perspective" },
+    { id: "formal", label: "Formal / Descriptive", type: "tone" },
+    { id: "poetic", label: "Creative / Poetic", type: "tone" },
+  ];
 
   return (
     <Page title="Compose">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-semibold text-slate-100">Create a new Story Entry</h2>
         <button onClick={() => setView("dashboard")} className="inline-flex items-center gap-2 text-slate-300 hover:text-amber-200">
-          {/* <ArrowLeft className="h-4 w-4" /> Back to Dashboard */}
           Back to Dashboard
         </button>
       </div>
@@ -23,16 +70,35 @@ const Compose = ({ setView }) => {
           onChange={(e) => setText(e.target.value)}
           className="w-full min-h-[220px] rounded-xl bg-slate-950 text-slate-100 border border-slate-800 p-4 outline-none focus:ring-2 focus:ring-amber-400/40"
         />
-        <div className="mt-4 grid sm:grid-cols-4 gap-3">
-          {styles.map((s) => (
-            <button key={s} className="rounded-xl bg-slate-800 text-slate-200 px-4 py-2 border border-slate-700 hover:border-slate-600">
-              {s}
-            </button>
-          ))}
+
+        <div className="mt-4">
+          <p className="text-sm text-slate-400 mb-2">Regenerate with different style:</p>
+          <div className="grid sm:grid-cols-4 gap-3">
+            {styles.map((s) => {
+              const isActive = s.type === "perspective" ? perspective === s.id : tone === s.id;
+              return (
+                <button
+                  key={s.id + s.type}
+                  onClick={() => s.type === "perspective" ? setPerspective(s.id) : setTone(s.id)}
+                  className={`rounded-xl px-4 py-2 border transition ${isActive
+                      ? "bg-amber-400 text-slate-900 border-amber-300 font-semibold"
+                      : "bg-slate-800 text-slate-200 border-slate-700 hover:border-slate-600"
+                    }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
         <div className="mt-6 flex gap-3">
-          <button onClick={() => alert("Narrative regenerated!")} className="rounded-full bg-amber-400 text-slate-900 px-5 py-2 font-semibold">
-            Generate Narrative
+          <button
+            onClick={handleRegenerate}
+            disabled={loading}
+            className={`rounded-full px-5 py-2 font-semibold ${loading ? "bg-slate-600 text-slate-300" : "bg-amber-400 text-slate-900"}`}
+          >
+            {loading ? "Generating..." : "Generate Narrative"}
           </button>
           <button onClick={() => setView("books")} className="rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold">
             Save Entry

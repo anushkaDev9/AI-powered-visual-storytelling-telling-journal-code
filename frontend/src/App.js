@@ -28,6 +28,9 @@ export default function App() {
   // undefined = checking, null = not authed, object = authed
   const [profile, setProfile] = useState(undefined);
 
+  // Shared image file for regeneration in Compose
+  const [sharedImage, setSharedImage] = useState(null);
+
   // keep URL in sync when view changes
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -77,13 +80,13 @@ export default function App() {
 
           {view === "create" && (
             <div key="create">
-              <CreateEntry setView={setView} />
+              <CreateEntry setView={setView} setSharedImage={setSharedImage} />
             </div>
           )}
 
           {view === "compose" && (
             <div key="compose">
-              <Compose setView={setView} />
+              <Compose setView={setView} sharedImage={sharedImage} />
             </div>
           )}
 

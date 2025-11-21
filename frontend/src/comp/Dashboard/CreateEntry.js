@@ -3,7 +3,7 @@ import Page from '../Page';
 import { AiOutlineCloudUpload } from "react-icons/ai";
 import placeholderImage from '../../Images/book_image.PNG';
 
-const CreateEntry = ({ setView }) => {
+const CreateEntry = ({ setView, setSharedImage }) => {
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
 
@@ -30,6 +30,7 @@ const CreateEntry = ({ setView }) => {
     const file = e.target.files[0];
     if (!file) return;
     setSelectedFile(file);
+    setSharedImage(file); // ✅ Share with App
     setSelectedPhotoUrl(URL.createObjectURL(file));
   };
 
