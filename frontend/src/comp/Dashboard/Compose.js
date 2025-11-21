@@ -1,17 +1,20 @@
-import React from 'react'
+import React, { useState } from 'react';
 import Page from '../Page';
-import { useState } from 'react';
-const Compose = ({setView}) => {
-     const [text, setText] = useState(
-    "I ran across the park, feeling the grass tickle my feet and the wind rush past my face. My orange airplane soared above me, just like the dreams I imagined taking off into the sky. For a moment, I felt unstoppable—free, happy, and ready to fly anywhere my heart wanted to go."
-  );
+
+const Compose = ({ setView }) => {
+  const [text, setText] = useState(() => {
+    return localStorage.getItem("AI_NARRATIVE") || "";
+  });
+
   const styles = ["First-Person (I Perspective)", "Third-Person (Story Mode)", "Formal / Descriptive", "Creative / Poetic"];
+
   return (
     <Page title="Compose">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-semibold text-slate-100">Create a new Story Entry</h2>
         <button onClick={() => setView("dashboard")} className="inline-flex items-center gap-2 text-slate-300 hover:text-amber-200">
-         {/*} <ArrowLeft className="h-4 w-4" /> Back to Dashboard*/}
+          {/* <ArrowLeft className="h-4 w-4" /> Back to Dashboard */}
+          Back to Dashboard
         </button>
       </div>
       <div className="rounded-2xl ring-1 ring-slate-800 bg-slate-900/60 p-6">
@@ -43,5 +46,4 @@ const Compose = ({setView}) => {
   );
 }
 
-
-export default Compose
+export default Compose;

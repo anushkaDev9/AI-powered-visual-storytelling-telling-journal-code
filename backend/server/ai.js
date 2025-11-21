@@ -31,7 +31,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // ----------------------------
 router.post("/generate-narrative", upload.single("image"), async (req, res) => {
   try {
-    const { lineCount, perspective, tone } = req.body;
+    const { lineCount, perspective, tone, context } = req.body;
     const imageFile = req.file;
 
     if (!imageFile) {
@@ -39,7 +39,7 @@ router.post("/generate-narrative", upload.single("image"), async (req, res) => {
     }
 
     console.log("\n=== FRONTEND DATA ===");
-    console.log({ lineCount, perspective, tone });
+    console.log({ lineCount, perspective, tone, context });
 
     // 🔍 Vision AI Analysis
     // NOTE: This call is the most common point of failure for credential/permission errors.
@@ -72,9 +72,12 @@ Make it exactly **${lineCount} lines**.
 Image description:
 ${description}
 
+${context ? `Additional Context/Keywords provided by user: ${context}` : ""}
+
 Rules:
 - Do not exceed ${lineCount} lines.
 - Each line must be a complete sentence.
+- If context is provided, incorporate it into the story.
     `;
 
     console.log("\n=== PROMPT SENT TO GEMINI ===");

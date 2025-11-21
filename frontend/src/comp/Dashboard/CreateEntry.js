@@ -9,6 +9,7 @@ const CreateEntry = ({ setView }) => {
 
   // ⭐ NEW: story line count instead of prompt
   const [lineCount, setLineCount] = useState(10);
+  const [context, setContext] = useState("");
 
   const [selectedPerspective, setSelectedPerspective] = useState("first");
   const [selectedTone, setSelectedTone] = useState("formal");
@@ -46,12 +47,14 @@ const CreateEntry = ({ setView }) => {
 
     // ⭐ Send lineCount as "lineCount"
     formData.append("lineCount", lineCount);
+    formData.append("context", context);
 
     console.log("Sending FormData:", {
       image: selectedFile,
       perspective: selectedPerspective,
       tone: selectedTone,
       lineCount,
+      context
     });
 
     try {
@@ -147,11 +150,10 @@ const CreateEntry = ({ setView }) => {
               <button
                 key={p.id}
                 onClick={() => setSelectedPerspective(p.id)}
-                className={`rounded-xl px-4 py-3 text-left border transition ${
-                  selectedPerspective === p.id
-                    ? "bg-amber-400 text-slate-900 border-amber-300"
-                    : "bg-slate-900/40 border-slate-700 text-slate-200 hover:border-slate-600"
-                }`}
+                className={`rounded-xl px-4 py-3 text-left border transition ${selectedPerspective === p.id
+                  ? "bg-amber-400 text-slate-900 border-amber-300"
+                  : "bg-slate-900/40 border-slate-700 text-slate-200 hover:border-slate-600"
+                  }`}
               >
                 {p.label}
               </button>
@@ -165,11 +167,10 @@ const CreateEntry = ({ setView }) => {
               <button
                 key={t.id}
                 onClick={() => setSelectedTone(t.id)}
-                className={`rounded-xl px-4 py-3 text-left border transition ${
-                  selectedTone === t.id
-                    ? "bg-amber-400 text-slate-900 border-amber-300"
-                    : "bg-slate-900/40 border-slate-700 text-slate-200 hover:border-slate-600"
-                }`}
+                className={`rounded-xl px-4 py-3 text-left border transition ${selectedTone === t.id
+                  ? "bg-amber-400 text-slate-900 border-amber-300"
+                  : "bg-slate-900/40 border-slate-700 text-slate-200 hover:border-slate-600"
+                  }`}
               >
                 {t.label}
               </button>
@@ -187,6 +188,17 @@ const CreateEntry = ({ setView }) => {
               value={lineCount}
               onChange={(e) => setLineCount(e.target.value)}
               className="w-full rounded-xl bg-slate-950 text-slate-100 border border-slate-800 p-3 outline-none focus:ring-2 focus:ring-amber-400/40"
+            />
+          </div>
+
+          {/* ⭐ NEW — Context / Keywords Input */}
+          <div className="mt-6">
+            <p className="text-sm text-slate-300 mb-2">Add Context or Keywords (Optional)</p>
+            <textarea
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="E.g., This was a sunny day at the beach..."
+              className="w-full rounded-xl bg-slate-950 text-slate-100 border border-slate-800 p-3 outline-none focus:ring-2 focus:ring-amber-400/40 min-h-[100px]"
             />
           </div>
 
