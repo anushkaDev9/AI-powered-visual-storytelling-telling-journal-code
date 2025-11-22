@@ -6,6 +6,7 @@ import placeholderImage from '../../Images/book_image.PNG';
 const CreateEntry = ({ setView, setSharedImage }) => {
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false); // Add loading state
 
   // ⭐ NEW: story line count instead of prompt
   const [lineCount, setLineCount] = useState(10);
@@ -41,6 +42,11 @@ const CreateEntry = ({ setView, setSharedImage }) => {
       return;
     }
 
+    // Prevent multiple clicks by setting loading state
+    if (isGenerating) return;
+
+    setIsGenerating(true);
+
     const formData = new FormData();
     formData.append("image", selectedFile);
     formData.append("perspective", selectedPerspective);
@@ -73,6 +79,8 @@ const CreateEntry = ({ setView, setSharedImage }) => {
     } catch (error) {
       console.error("Error:", error);
       alert("Failed to send request.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -206,9 +214,17 @@ const CreateEntry = ({ setView, setSharedImage }) => {
           <div className="mt-6 flex gap-3">
             <button
               onClick={sendToBackend}
-              className="rounded-full bg-amber-400 text-slate-900 px-5 py-2 font-semibold"
+              disabled={isGenerating}
+              className={`rounded-full px-5 py-2 font-semibold transition-all duration-200 flex items-center gap-2 ${
+                isGenerating
+                  ? "bg-amber-400/50 text-slate-700 cursor-not-allowed"
+                  : "bg-amber-400 text-slate-900 hover:bg-amber-300"
+              }`}
             >
-              Generate Narrative
+              {isGenerating && (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-700 border-t-transparent"></div>
+              )}
+              {isGenerating ? "Generating..." : "Generate Narrative"}
             </button>
           </div>
         </div>

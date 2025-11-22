@@ -19,6 +19,9 @@ const Compose = ({ setView, sharedImage }) => {
       return;
     }
 
+    // Prevent multiple clicks by checking loading state
+    if (loading) return;
+
     setLoading(true);
     try {
       const formData = new FormData();
@@ -121,11 +124,18 @@ const handleSave = async () => {
           <button
             onClick={handleRegenerate}
             disabled={loading}
-            className={`rounded-full px-5 py-2 font-semibold ${loading ? "bg-slate-600 text-slate-300" : "bg-amber-400 text-slate-900"}`}
+            className={`rounded-full px-5 py-2 font-semibold transition-all duration-200 flex items-center gap-2 ${
+              loading
+                ? "bg-amber-400/50 text-slate-700 cursor-not-allowed"
+                : "bg-amber-400 text-slate-900 hover:bg-amber-300"
+            }`}
           >
+            {loading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-700 border-t-transparent"></div>
+            )}
             {loading ? "Generating..." : "Generate Narrative"}
           </button>
-          <button onClick={handleSave} className="rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold">
+          <button onClick={() => setView("books")} className="rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold hover:bg-slate-700 transition-colors">
             Save Entry
           </button>
         </div>
