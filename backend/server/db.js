@@ -56,3 +56,18 @@ export async function saveStoryEntry(userId, data) {
       createdAt: new Date(),
     });
 }
+// db.js
+export async function getUserStories(userId) {
+  const snap = await db
+    .collection("users")
+    .doc(userId)
+    .collection("stories")
+    .orderBy("createdAt", "desc")
+    .get();
+
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+    createdAt: d.data().createdAt?.toDate?.() ?? null,
+  }));
+}
