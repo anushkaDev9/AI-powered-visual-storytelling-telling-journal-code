@@ -4,9 +4,14 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import aiRoutes from "./ai.js";
-import { upsertUser, userExistsByEmail } from "./db.js";   // ✅ REAL DB FUNCTIONS
+import { upsertUser, userExistsByEmail } from "./db.js"; // ✅ REAL DB FUNCTIONS
 import generateNarrativeRouter from "./ai.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import bcrypt from "bcryptjs";
+import { Firestore } from "@google-cloud/firestore";
 
 
 
@@ -139,40 +144,166 @@ app.get("/api/user/exists", async (req, res, next) => {
   }
 });
 
-// Simple email/password sign-in (demo, no real password checks)
-app.post("/api/signin", async (req, res, next) => {
-  try {
-    const { email, password } = req.body || {};
-    const trimmed = typeof email === "string" ? email.trim() : "";
-    if (!trimmed) return res.status(400).json({ error: "missing_email" });
+// ----------------------------
+// Local users.json store (signup / login) - stored and handled inline
+// ----------------------------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const USERS_PATH = path.resolve(__dirname, "users.json");
 
-    // NOTE: This demo does not validate passwords. In a real app you must
-    // - store hashed passwords
-    // - verify credentials
-    // - rate-limit and protect endpoints
-
-    const sub = `local:${trimmed}`; // use a unique key for local users
-
-    // create/update user record (upsertUser comes from ./db.js)
-    await upsertUser(sub, {
-      email: trimmed,
-      name: trimmed.split("@")[0] || trimmed,
-      picture: null,
-      provider: "local",
+// Attempt to initialize Firestore from a service account JSON if present.
+let firestoreClient = null;
+try {
+  const keyPath = path.resolve(__dirname, "../aivisionstoryjournal-478317-firebase-adminsdk-fbsvc-f19b18ddaa.json");
+  if (fs.existsSync(keyPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(keyPath, "utf8"));
+    firestoreClient = new Firestore({
+      projectId: serviceAccount.project_id,
+      credentials: {
+        client_email: serviceAccount.client_email,
+        private_key: serviceAccount.private_key,
+      },
     });
+    console.log("Firestore initialized from service account JSON");
+  } else {
+    console.log("Firestore service account JSON not found, using local users.json fallback");
+  }
+} catch (e) {
+  console.warn("Failed to initialize Firestore, will use local users.json:", e?.message ?? e);
+  firestoreClient = null;
+}
 
-    // store a minimal profile in session so frontend can call /api/profile
-    req.session.profile = {
-      sub,
+function readUsers() {
+  try {
+    if (!fs.existsSync(USERS_PATH)) return [];
+    const raw = fs.readFileSync(USERS_PATH, "utf8");
+    return JSON.parse(raw || "[]");
+  } catch (e) {
+    console.error("Error reading users.json", e);
+    return [];
+  }
+}
+
+function writeUsers(users) {
+  fs.writeFileSync(USERS_PATH, JSON.stringify(users, null, 2), "utf8");
+}
+
+// Basic input validation
+function isValidEmail(email) {
+  return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidPassword(pw) {
+  return typeof pw === "string" && pw.length >= 6;
+}
+
+app.post("/api/auth/signup", async (req, res, next) => {
+  try {
+    const { email, password, name } = req.body || {};
+    const trimmed = typeof email === "string" ? email.trim().toLowerCase() : "";
+    if (!trimmed || !password) return res.status(400).json({ error: "missing_fields" });
+    // First check local JSON store for duplicates
+  // validate inputs
+  if (!isValidEmail(trimmed)) return res.status(400).json({ error: "invalid_email" });
+  if (!isValidPassword(password)) return res.status(400).json({ error: "weak_password", reason: "password must be at least 6 characters" });
+
+  // check local JSON for duplicates
+  const users = readUsers();
+  if (users.find((u) => u.email === trimmed)) return res.status(409).json({ error: "user_exists" });
+
+  const hash = await bcrypt.hash(password, 10);
+    const user = {
       email: trimmed,
-      name: trimmed.split("@")[0] || trimmed,
-      picture: null,
+      name: name || trimmed.split("@")[0],
+      passwordHash: hash,
+      createdAt: new Date().toISOString(),
+      provider: "local",
     };
+
+    // Save locally (fallback)
+    users.push(user);
+    writeUsers(users);
+
+    // Also write to Firestore if available (non-blocking best-effort)
+    if (firestoreClient) {
+      try {
+        const docId = `local:${trimmed}`;
+        // avoid overwriting passwordHash; store public fields
+        await firestoreClient.collection("users").doc(docId).set({
+          email: user.email,
+          name: user.name,
+          provider: "local",
+          createdAt: user.createdAt,
+        }, { merge: true });
+      } catch (err) {
+        console.warn("Failed to write new user to Firestore:", err?.message ?? err);
+      }
+    }
 
     res.json({ ok: true });
   } catch (e) {
     next(e);
   }
+});
+
+app.post("/api/auth/login", async (req, res, next) => {
+  try {
+    const { email, password } = req.body || {};
+    const trimmed = typeof email === "string" ? email.trim().toLowerCase() : "";
+    if (!trimmed || !password) return res.status(400).json({ error: "missing_fields" });
+    if (!isValidEmail(trimmed)) return res.status(400).json({ error: "invalid_email" });
+
+    const users = readUsers();
+    const user = users.find((u) => u.email === trimmed);
+    if (!user) return res.status(401).json({ error: "invalid_credentials" });
+
+    const ok = await bcrypt.compare(password, user.passwordHash || "");
+    if (!ok) return res.status(401).json({ error: "invalid_credentials" });
+
+    // upsert into real DB if available (best-effort)
+    try {
+      // write to Firestore if configured (alternative to upsertUser)
+      if (firestoreClient) {
+        const docId = `local:${user.email}`;
+        await firestoreClient.collection("users").doc(docId).set({
+          email: user.email,
+          name: user.name,
+          picture: null,
+          lastLoginAt: new Date().toISOString(),
+          provider: "local",
+        }, { merge: true });
+      } else {
+        await upsertUser(`local:${user.email}`, {
+          email: user.email,
+          name: user.name,
+          picture: null,
+        });
+      }
+    } catch (err) {
+      console.warn("upsertUser/Firestore write failed:", err?.message ?? err);
+    }
+
+    req.session.profile = {
+      sub: `local:${user.email}`,
+      email: user.email,
+      name: user.name,
+      picture: null,
+    };
+
+    res.json({ ok: true, profile: req.session.profile });
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.get("/api/auth/user", (req, res) => {
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  if (!email) return res.status(400).json({ error: "missing_email" });
+  const users = readUsers();
+  const user = users.find((u) => u.email === email);
+  if (!user) return res.status(404).json({ error: "not_found" });
+  const { passwordHash, ...safe } = user;
+  res.json(safe);
 });
 
 /* AI routes */

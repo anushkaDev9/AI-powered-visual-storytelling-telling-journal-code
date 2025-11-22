@@ -99,7 +99,9 @@ export default function App() {
             </div>
           )}
 
-          {view === "SignInButton" && <SignInPage setView={setView} />}
+          {view === "SignInButton" && (
+            <SignInPage setView={setView} setProfile={setProfile} />
+          )}
 
           {/* Google Photos picker view */}
           {view === "photosPicker" && <PhotosPicker setView={setView} />}

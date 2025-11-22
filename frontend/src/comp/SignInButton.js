@@ -3,37 +3,70 @@ import Page from "../comp/Page";
 
 const API_BASE = "http://localhost:3000";
 
-export default function SignInPage({ setView }) {
+export default function SignInPage({ setView, setProfile }) {
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleOAuth = (provider) => {
-    if (provider === "google") {
-      window.location.href = `${API_BASE}/google`; // <-- redirect to backend
-    }
-    // add others later, e.g. pinterest
-  };
-
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    if (!email) return setError("Please enter an email");
+    if (!email || !pwd) return setError("Enter email and password");
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE}/api/signin`, {
+      const r = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ email, password: pwd }),
       });
       if (r.ok) {
-        // reload to let App fetch /api/profile and update UI
-        window.location.assign(`${window.location.origin}?view=books`);
+        const body = await r.json().catch(() => ({}));
+        // update app-level profile and go to books view
+        if (typeof setProfile === "function" && body.profile) setProfile(body.profile);
+        if (typeof setView === "function") setView("books");
       } else {
         const body = await r.json().catch(() => ({}));
-        setError(body?.error || "Signin failed");
+        setError(body?.error || "Login failed");
+      }
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!email || !pwd) return setError("Enter email and password");
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: pwd }),
+      });
+      if (r.ok) {
+        // after signup, attempt login and update profile
+        const loginResp = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password: pwd }),
+        });
+        if (loginResp.ok) {
+          const body = await loginResp.json().catch(() => ({}));
+          if (typeof setProfile === "function" && body.profile) setProfile(body.profile);
+          if (typeof setView === "function") setView("books");
+          return;
+        }
+        const body = await loginResp.json().catch(() => ({}));
+        setError(body?.error || "Login after signup failed");
+      } else {
+        const body = await r.json().catch(() => ({}));
+        setError(body?.error || "Signup failed");
       }
     } catch (err) {
       setError(String(err));
@@ -44,96 +77,51 @@ export default function SignInPage({ setView }) {
 
   return (
     <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-100 ">
-      <Page title="SignInButton">
-        <div
-          role="dialog"
-          aria-labelledby="signin-title"
-          aria-describedby="signin-subtitle"
-          className="w-full max-w-2xl min-h-[650px] rounded-3xl bg-slate-900 shadow-2xl ring-1 ring-slate-800 py-0 px-10 flex flex-col justify-center"
-        >
-          {/* Header */}
-          <div className="mb-6 text-center">
-            <h1
-              id="signin-title"
-              className="text-3xl font-bold text-amber-300 leading-tight"
-            >
-              Sign In
-            </h1>
-            <p
-              id="signin-subtitle"
-              className="mt-1 text-base text-slate-400"
-            >
-              Continue to your AI Vision Journal
-            </p>
-          </div>
+      <Page title="SignIn">
+        <div className="w-full max-w-md rounded-2xl bg-slate-900 p-8">
+          <h2 className="text-2xl font-bold text-amber-300 mb-2">Sign In / Sign Up</h2>
+          <p className="text-sm text-slate-400 mb-6">Use email & password or Google OAuth</p>
 
-          {/* OAuth buttons */}
-          <div className="grid gap-4 max-w-md mx-auto w-full">
-            <button
-              onClick={() => window.location.assign(`${API_BASE}/google`)}
-              aria-label="Continue with Google"
-              className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-semibold shadow hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
-            >
-              <span className="grid h-6 w-6 place-items-center rounded">
-                {GoogleIcon}
-              </span>
-              <span>Continue with Google</span>
-            </button>
+          <form className="grid gap-3" onSubmit={handleLogin}>
+            <label className="text-sm text-slate-400">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-slate-100"
+              required
+            />
 
-            <button
-              onClick={() => handleOAuth("pinterest")}
-              aria-label="Continue with Pinterest"
-              className="flex items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-950/40 px-5 py-3 text-sm font-semibold shadow hover:bg-rose-900/60 focus:outline-none focus:ring-2 focus:ring-rose-500/60"
-            >
-              <span className="grid h-6 w-6 place-items-center rounded">
-                {PinterestIcon}
-              </span>
-              <span>Continue with Pinterest</span>
-            </button>
-          </div>
+            <label className="text-sm text-slate-400">Password</label>
+            <input
+              type="password"
+              value={pwd}
+              onChange={(e) => setPwd(e.target.value)}
+              className="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-slate-100"
+              required
+            />
 
-          {/* Divider */}
-          <div className="mt-6 max-w-md mx-auto w-full">
-            <form onSubmit={handleSubmit} className="grid gap-3">
-              <label className="text-sm text-slate-400">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-slate-100"
-                required
-              />
+            {error && <div className="text-sm text-rose-400">{error}</div>}
 
-              <label className="text-sm text-slate-400">Password</label>
-              <input
-                type="password"
-                value={pwd}
-                onChange={(e) => setPwd(e.target.value)}
-                className="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-slate-100"
-              />
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-xl bg-amber-400 text-slate-900 px-4 py-2 font-semibold shadow"
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </button>
 
-              {error && <div className="text-sm text-rose-400">{error}</div>}
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="rounded-xl bg-amber-400 text-slate-900 px-4 py-2 font-semibold shadow"
-                >
-                  {loading ? "Signing in..." : "Sign in"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setEmail("") || setPwd("")}
-                  className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-100"
-                >
-                  Clear
-                </button>
-              </div>
-            </form>
-          </div>
-
+              <button
+                type="button"
+                onClick={handleSignup}
+                disabled={loading}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-100"
+              >
+                {loading ? "Please wait..." : "Sign up"}
+              </button>
+            </div>
+          </form>
         </div>
       </Page>
     </div>

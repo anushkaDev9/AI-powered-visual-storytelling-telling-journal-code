@@ -7,6 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
+  "bin": {
+    "migrate-users": "./migrate-users-to-firestore.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -23,6 +26,7 @@
     "express-session": "^1.18.2",
     "google-auth-library": "^10.5.0",
     "multer": "^2.0.2",
+  "bcryptjs": "^2.4.3",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0"
   }
