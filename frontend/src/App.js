@@ -18,20 +18,21 @@ export default function App() {
   // read initial view from URL (?view=...), fallback to "home"
   const initialView = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
-    // preserve existing behavior
     return params.get("view") || "home";
   }, []);
 
   const [view, setView] = useState(initialView);
 
-  // AUTH: profile state lives here
-  // undefined = checking, null = not authed, object = authed
+  // profile: undefined = checking, null = not authed, object = authed
   const [profile, setProfile] = useState(undefined);
 
-  // Shared image file for regeneration in Compose
+  // Shared image for Compose (unchanged)
   const [sharedImage, setSharedImage] = useState(null);
 
-  // keep URL in sync when view changes
+  // NEW: active story to show in Viewer
+  const [activeStory, setActiveStory] = useState(null);
+
+  // keep URL in sync with view
   useEffect(() => {
     const url = new URL(window.location.href);
     url.searchParams.set("view", view);
@@ -51,61 +52,96 @@ export default function App() {
         } else {
           setProfile(null);
         }
-      } catch (e) {
-        // network error -> treat as not authed
+      } catch {
         setProfile(null);
       }
     })();
   }, []);
 
+  // Wrap setView to also accept a payload (like a story)
+  const setViewWithPayload = (nextView, payload = null) => {
+    setView(nextView);
+    setActiveStory(payload);
+
+    // optional: persist for refreshes
+    if (payload) {
+      sessionStorage.setItem("activeStory", JSON.stringify(payload));
+    } else {
+      sessionStorage.removeItem("activeStory");
+    }
+  };
+
+  // Restore persisted story on load (useful if Viewer refreshes)
+  useEffect(() => {
+    const saved = sessionStorage.getItem("activeStory");
+    if (saved && !activeStory) {
+      try {
+        setActiveStory(JSON.parse(saved));
+      } catch {
+        sessionStorage.removeItem("activeStory");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="App">
       <div className="min-h-screen w-full bg-slate-950 text-slate-50">
-        {/* Pass profile and setProfile to Header */}
-        <Header view={view} setView={setView} profile={profile} setProfile={setProfile} />
+        <Header
+          view={view}
+          setView={setViewWithPayload}
+          profile={profile}
+          setProfile={setProfile}
+        />
 
         <div>
           {view === "home" && (
             <div key="home">
-              <Hero setView={setView} />
+              <Hero setView={setViewWithPayload} />
               <Works />
             </div>
           )}
 
           {view === "dashboard" && (
             <div key="dashboard">
-              <Dashboard setView={setView} />
+              <Dashboard setView={setViewWithPayload} />
             </div>
           )}
 
           {view === "create" && (
             <div key="create">
-              <CreateEntry setView={setView} setSharedImage={setSharedImage} />
+              <CreateEntry
+                setView={setViewWithPayload}
+                setSharedImage={setSharedImage}
+              />
             </div>
           )}
 
           {view === "compose" && (
             <div key="compose">
-              <Compose setView={setView} sharedImage={sharedImage} />
+              <Compose setView={setViewWithPayload} sharedImage={sharedImage} />
             </div>
           )}
 
           {view === "books" && (
             <div key="books">
-              <Books setView={setView} profile={profile} setProfile={setProfile} />
+              <Books
+                setView={setViewWithPayload}
+                profile={profile}
+                setProfile={setProfile}
+              />
             </div>
           )}
 
           {view === "viewer" && (
             <div key="viewer">
-              <Viewer setView={setView} />
+              <Viewer setView={setViewWithPayload} story={activeStory} />
             </div>
           )}
 
-          {view === "SignInButton" && <SignInPage setView={setView} />}
+          {view === "SignInButton" && <SignInPage setView={setViewWithPayload} />}
 
-          {/* Google Photos picker view */}
-          {view === "photosPicker" && <PhotosPicker setView={setView} />}
+          {view === "photosPicker" && <PhotosPicker setView={setViewWithPayload} />}
         </div>
 
         <footer className="mt-10 border-t border-slate-800">
