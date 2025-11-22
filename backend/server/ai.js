@@ -4,9 +4,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import vision from "@google-cloud/vision";
 import cors from "cors";
 import dotenv from "dotenv";
-
+import { saveStoryEntry } from "./db.js";
 dotenv.config();
-
+const key="AIzaSyAo8b8Gtp1pmLegk2s7zVDE6apAEFTvc3M"
 const router = express.Router();
 const { GOOGLE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, GEMINI_API_KEY } = process.env;
 
@@ -14,7 +14,7 @@ const { GOOGLE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, GEMINI_API_KEY } = pr
 router.use(cors({ origin: "http://localhost:3001" }));
 
 // ✅ Initialize Gemini
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(key);
 console.log("Gemini client initialized.");
 
 // Vision client
@@ -131,7 +131,6 @@ Rules:
     }
     */
 
-
     console.log("\n=== STORY GENERATED ===");
     console.log(text);
 
@@ -149,5 +148,34 @@ Rules:
     res.status(500).json({ error: "Generation failed", details: err.message });
   }
 });
+router.post("/save-entry", upload.single("image"), async (req, res) => {
+  try {
+    const userId = req.session?.profile?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: "User not logged in" });
+    }
 
+    const { narrative } = req.body;
+    const imageFile = req.file;
+
+    if (!imageFile) {
+      return res.status(400).json({ error: "No image provided" });
+    }
+
+    // Convert image to Base64 string
+    const base64Image = imageFile.buffer.toString("base64");
+    const finalImage = `data:${imageFile.mimetype};base64,${base64Image}`;
+
+    // Save everything in Firestore
+    await saveStoryEntry(userId, {
+      narrative,
+      image: finalImage,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Save Entry Error:", err);
+    res.status(500).json({ error: "Failed to save entry" });
+  }
+});
 export default router;
