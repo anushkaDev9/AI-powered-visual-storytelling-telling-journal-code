@@ -3,12 +3,25 @@ import multer from "multer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import vision from "@google-cloud/vision";
 import cors from "cors";
-import dotenv from "dotenv";
 import { saveStoryEntry } from "./db.js";
+import dotenv from "dotenv";
+
+
 dotenv.config();
 
+const {
+  PORT = 3000,
+  SESSION_SECRET,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI,
+  GOOGLE_PROJECT_ID,
+  GOOGLE_APPLICATION_CREDENTIALS,
+  GEMINI_API_KEY,
+  FRONTEND_ORIGIN = "http://localhost:3001",
+} = process.env;
+
 const router = express.Router();
-const { GOOGLE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, GEMINI_API_KEY } = process.env;
 
 // Allow frontend
 router.use(cors({ origin: "http://localhost:3001" }));
@@ -31,18 +44,15 @@ const upload = multer({ storage: multer.memoryStorage() });
 // ----------------------------
 router.post("/generate-narrative", upload.single("image"), async (req, res) => {
   try {
-    const { lineCount, perspective, tone, context } = req.body;
+    const { lineCount, perspective, tone } = req.body;
     const imageFile = req.file;
-
     if (!imageFile) {
       return res.status(400).json({ error: "No image uploaded" });
     }
-
-    console.log("\n=== FRONTEND DATA ===");
-    console.log({ lineCount, perspective, tone, context });
-
-    // 🔍 Vision AI Analysis
-    // NOTE: This call is the most common point of failure for credential/permission errors.
+    console.log("\n=== FRONTEND DATA ===", { lineCount, perspective, tone });
+    // ----------------------------
+    // 🔍 Vision API — Label + Object Detection
+    // ----------------------------
     const [visionResult] = await visionClient.batchAnnotateImages({
       requests: [
         {
@@ -54,100 +64,63 @@ router.post("/generate-narrative", upload.single("image"), async (req, res) => {
         },
       ],
     });
-
     const annotations = visionResult.responses[0];
     const labels = (annotations.labelAnnotations || []).map(l => l.description);
     const objects = (annotations.localizedObjectAnnotations || []).map(o => o.name);
-
     const description = `Labels: ${labels.join(", ")}. Objects: ${objects.join(", ")}.`;
-    console.log("\n=== VISION OUTPUT ===");
-    console.log(description);
-
+    console.log("\n=== VISION OUTPUT ===", description);
+    // ----------------------------
     // ✍ Build narrative prompt
-    // FIX: This is where 'narrativePrompt' is defined, preventing the ReferenceError.
+    // ----------------------------
     const narrativePrompt = `
-Write a story using a **${tone}** tone and **${perspective}** perspective.
-Make it exactly **${lineCount} lines**.
-
-Image description:
+Write a story in a **${tone}** tone and **${perspective}** person perspective.
+The story must be exactly **${lineCount} lines**.
+Here is the image description:
 ${description}
-
-${context ? `Additional Context/Keywords provided by user: ${context}` : ""}
-
 Rules:
-- Do not exceed ${lineCount} lines.
+- Exactly ${lineCount} lines.
 - Each line must be a complete sentence.
-- If context is provided, incorporate it into the story.
     `;
-
-    console.log("\n=== PROMPT SENT TO GEMINI ===");
-    console.log(narrativePrompt);
-
-    // FIX: Define 'model', preventing the ReferenceError and using the correct model ID.
-    const model = genAI.getGenerativeModel({
+    console.log("\n=== PROMPT SENT TO GEMINI ===", narrativePrompt);
+    // ----------------------------
+    // 🤖 Gemini API — Correct multimodal call
+    // ----------------------------
+ const model = genAI.getGenerativeModel({
       model: "gemini-2.5-pro", // Use a stable and available model identifier
     });
-
-    // FIX: Convert the image buffer to a Base64 string for the API call and frontend.
-    const base64Image = imageFile.buffer.toString("base64");
-
-    let text = "";
-
-    /* // OPTIONAL SUGGESTION: Robust Retry Mechanism for 503 Errors
-    const MAX_RETRIES = 3;
-    let attempt = 0;
-    
-    while (attempt < MAX_RETRIES) {
-        try {
-            console.log(`Attempting Gemini generation (Attempt ${attempt + 1})...`);
-    */
-
-    // 🤖 Gemini Generation
-    const result = await model.generateContent([
-      { text: narrativePrompt },
-      {
-        inlineData: {
-          data: base64Image,       // Base64 string fix
-          mimeType: imageFile.mimetype
-        }
-      }
-    ]);
-
-    text = await result.response.text();
-    /*
-            break; // Exit the loop on success
-            
-        } catch (err) {
-            attempt++;
-            // Check specifically for 503 errors
-            if (attempt < MAX_RETRIES && err.status === 503) {
-                const delay = 2 ** attempt * 1000; // Exponential backoff
-                console.warn(`Model overloaded (503). Retrying in ${delay / 1000} seconds...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            } else {
-                throw err; // Re-throw if it's the last attempt or a different error
-            }
-        }
-    }
-    */
-
-    console.log("\n=== STORY GENERATED ===");
-    console.log(text);
-
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: narrativePrompt },
+            {
+              inlineData: {
+                mimeType: imageFile.mimetype,
+                data: imageFile.buffer.toString("base64"), // required by Gemini
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const text = result.response.text();
+    console.log("\n=== STORY GENERATED ===", text);
+    // Base64 encode for frontend
+    const base64 = imageFile.buffer.toString("base64");
     res.json({
       narrative: text,
-      // FIX: Use 'base64Image' instead of the undefined 'base64'.
-      imageUrl: `data:${imageFile.mimetype};base64,${base64Image}`,
+      imageUrl: `data:${imageFile.mimetype};base64,${base64}`,
       lineCount,
       perspective,
-      tone
+      tone,
     });
-
   } catch (err) {
     console.error("❌ Generate Narrative Error:", err);
     res.status(500).json({ error: "Generation failed", details: err.message });
   }
 });
+
 router.post("/save-entry", upload.single("image"), async (req, res) => {
   try {
     const userId = req.session?.profile?.sub;
