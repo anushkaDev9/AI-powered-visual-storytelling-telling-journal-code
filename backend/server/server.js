@@ -7,7 +7,7 @@ import aiRoutes from "./ai.js";
 import { upsertUser, userExistsByEmail } from "./db.js";   // ✅ REAL DB FUNCTIONS
 import generateNarrativeRouter from "./ai.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
+import { getUserStories } from "./db.js";
 
 
 dotenv.config();
@@ -148,7 +148,19 @@ app.use((err, _req, res, _next) => {
 });
 
 app.use("/api/generate-narrative", generateNarrativeRouter);
+//get the list of stories for the authenticated user
+app.get("/api/stories", async (req, res) => {
+  try {
+    const userId = req.session?.profile?.sub;
+    if (!userId) return res.status(401).json({ error: "not_authed" });
 
+    const stories = await getUserStories(userId);
+    res.json({ stories });
+  } catch (e) {
+    console.error("List stories error:", e);
+    res.status(500).json({ error: "server_error" });
+  }
+});
 app.listen(PORT, () => {
   console.log(`API at http://localhost:${PORT}`);
   console.log(`Frontend origin: ${FRONTEND_ORIGIN}`);
