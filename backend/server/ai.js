@@ -6,7 +6,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { saveStoryEntry } from "./db.js";
 dotenv.config();
-const key="AIzaSyAo8b8Gtp1pmLegk2s7zVDE6apAEFTvc3M"
+
 const router = express.Router();
 const { GOOGLE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, GEMINI_API_KEY } = process.env;
 
