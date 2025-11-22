@@ -14,7 +14,7 @@ const { GOOGLE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, GEMINI_API_KEY } = pr
 router.use(cors({ origin: "http://localhost:3001" }));
 
 // ✅ Initialize Gemini
-const genAI = new GoogleGenerativeAI(key);
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 console.log("Gemini client initialized.");
 
 // Vision client
