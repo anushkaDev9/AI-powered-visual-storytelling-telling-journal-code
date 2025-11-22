@@ -109,23 +109,33 @@ export default function PhotosPicker({ setView }) {
       {items.length === 0 ? (
         <div className="text-slate-400">No photos found.</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {items.map(m => (
-            <button
-              key={m.id}
-              onClick={() => choose(m.baseUrl)}
-              className="group relative aspect-square overflow-hidden rounded-xl border border-slate-700 hover:border-amber-300"
-              title={m.filename}
-            >
-              <img
-                src={`${m.baseUrl}=w400-h400`}
-                alt={m.filename}
-                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                referrerPolicy="no-referrer"
-              />
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="text-slate-400 text-sm mb-3">Found {items.length} images</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {items.map(m => (
+              <button
+                key={m.id}
+                onClick={() => choose(m.baseUrl)}
+                className="group relative aspect-square overflow-hidden rounded-xl border border-slate-700 hover:border-amber-300"
+                title={m.filename}
+              >
+                <img
+                  src={m.baseUrl}
+                  alt={m.filename}
+                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    console.error('Image failed to load:', m.baseUrl);
+                    e.target.style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log('Image loaded successfully:', m.filename);
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </>
   );

@@ -37,7 +37,8 @@ const CreateEntry = ({ setView, setSharedImage }) => {
 
   // ⭐ Send to backend
   const sendToBackend = async () => {
-    if (!selectedFile) {
+    // Check if we have either a file or a selected photo URL
+    if (!selectedFile && !selectedPhotoUrl) {
       alert("Please upload an image first!");
       return;
     }
@@ -47,24 +48,37 @@ const CreateEntry = ({ setView, setSharedImage }) => {
 
     setIsGenerating(true);
 
-    const formData = new FormData();
-    formData.append("image", selectedFile);
-    formData.append("perspective", selectedPerspective);
-    formData.append("tone", selectedTone);
-
-    // ⭐ Send lineCount as "lineCount"
-    formData.append("lineCount", lineCount);
-    formData.append("context", context);
-
-    console.log("Sending FormData:", {
-      image: selectedFile,
-      perspective: selectedPerspective,
-      tone: selectedTone,
-      lineCount,
-      context
-    });
-
     try {
+      let formData = new FormData();
+      
+      // Handle file upload vs URL-based image
+      if (selectedFile) {
+        // Direct file upload
+        formData.append("image", selectedFile);
+      } else if (selectedPhotoUrl) {
+        // URL-based image (from Google Photos) - fetch and convert to blob
+        const response = await fetch(selectedPhotoUrl, { credentials: 'include' });
+        if (!response.ok) {
+          throw new Error("Failed to fetch the selected image");
+        }
+        const blob = await response.blob();
+        formData.append("image", blob, "imported-image.jpg");
+      }
+
+      formData.append("perspective", selectedPerspective);
+      formData.append("tone", selectedTone);
+      formData.append("lineCount", lineCount);
+      formData.append("context", context);
+
+      console.log("Sending FormData:", {
+        hasFile: !!selectedFile,
+        hasUrl: !!selectedPhotoUrl,
+        perspective: selectedPerspective,
+        tone: selectedTone,
+        lineCount,
+        context
+      });
+
       const response = await fetch(`${API_BASE}/ai/generate-narrative`, {
         method: "POST",
         body: formData,
@@ -78,7 +92,7 @@ const CreateEntry = ({ setView, setSharedImage }) => {
       setView("compose")
     } catch (error) {
       console.error("Error:", error);
-      alert("Failed to send request.");
+      alert("Failed to send request: " + error.message);
     } finally {
       setIsGenerating(false);
     }
@@ -147,6 +161,14 @@ const CreateEntry = ({ setView, setSharedImage }) => {
               alt="Selected"
               className="w-full object-cover mt-4 rounded-xl"
             />
+            
+            {/* Debug info */}
+            {selectedPhotoUrl && (
+              <div className="mt-2 text-xs text-slate-400">
+                {selectedFile ? "📁 File uploaded" : "🔗 Image imported"} 
+                {selectedPhotoUrl.includes('localhost:3000') ? " from Google Photos" : ""}
+              </div>
+            )}
           </div>
         </div>
 

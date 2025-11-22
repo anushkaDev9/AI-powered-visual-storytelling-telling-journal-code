@@ -97,7 +97,7 @@ app.get('/google/drive/images', async (req, res, next) => {
       id: file.id,
       filename: file.name,
       mimeType: file.mimeType,
-      baseUrl: file.thumbnailLink || `https://drive.google.com/uc?id=${file.id}`,
+      baseUrl: `http://localhost:3000/api/drive/image/${file.id}`, // Proxy through our server
       productUrl: file.webViewLink,
       mediaMetadata: {
         creationTime: file.createdTime
@@ -106,6 +106,59 @@ app.get('/google/drive/images', async (req, res, next) => {
 
     res.json({ items, nextPageToken: data.nextPageToken || null });
   } catch (e) {
+    next(e);
+  }
+});
+
+// Proxy endpoint to serve Google Drive images with authentication
+app.get('/api/drive/image/:fileId', async (req, res, next) => {
+  try {
+    if (!req.session?.tokens) {
+      return res.status(401).json({ error: 'not_authed' });
+    }
+
+    const { fileId } = req.params;
+    oauth.setCredentials(req.session.tokens);
+    const { token } = await oauth.getAccessToken();
+    const accessToken = token || oauth.credentials.access_token;
+
+    // Get file metadata first
+    const metadataUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType,thumbnailLink`;
+    const metadataResp = await fetch(metadataUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!metadataResp.ok) {
+      return res.status(404).json({ error: 'file_not_found' });
+    }
+
+    const metadata = await metadataResp.json();
+
+    // Try thumbnail first, then fallback to direct download
+    let imageUrl = metadata.thumbnailLink;
+    if (!imageUrl) {
+      imageUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    }
+
+    // Fetch the image
+    const imageResp = await fetch(imageUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!imageResp.ok) {
+      return res.status(404).json({ error: 'image_not_found' });
+    }
+
+    // Set appropriate headers and pipe the image
+    res.set('Content-Type', metadata.mimeType || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    
+    // Stream the image response
+    const buffer = await imageResp.arrayBuffer();
+    res.send(Buffer.from(buffer));
+
+  } catch (e) {
+    console.error('Drive image proxy error:', e);
     next(e);
   }
 });
@@ -248,7 +301,7 @@ app.get('/api/photos/recent', async (req, res, next) => {
       id: file.id,
       filename: file.name,
       mimeType: file.mimeType,
-      baseUrl: file.thumbnailLink || `https://drive.google.com/uc?id=${file.id}`,
+      baseUrl: `http://localhost:3000/api/drive/image/${file.id}`, // Proxy through our server
       productUrl: file.webViewLink,
       mediaMetadata: {
         creationTime: file.createdTime
