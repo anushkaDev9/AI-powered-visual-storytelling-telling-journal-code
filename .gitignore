@@ -1,5 +1,6 @@
 node_modules/
 .env
+backend/server/.env
 backend/aivisionstoryjournal-478317-firebase-adminsdk-fbsvc-f19b18ddaa.json
 .DS_Store
 *.log
