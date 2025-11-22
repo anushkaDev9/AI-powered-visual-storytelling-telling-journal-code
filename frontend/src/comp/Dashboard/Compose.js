@@ -55,6 +55,31 @@ const Compose = ({ setView, sharedImage }) => {
     { id: "formal", label: "Formal / Descriptive", type: "tone" },
     { id: "poetic", label: "Creative / Poetic", type: "tone" },
   ];
+// Inside Compose.js, add a save function
+const handleSave = async () => {
+  if (!sharedImage) {
+    alert("No image found.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("image", sharedImage);
+  formData.append("narrative", text);
+
+  const res = await fetch("http://localhost:3000/ai/save-entry", {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (res.ok) {
+    alert("Saved!");
+  } else {
+    alert("Could not save.");
+  }
+  setView("books")
+};
+
 
   return (
     <Page title="Compose">
@@ -100,7 +125,7 @@ const Compose = ({ setView, sharedImage }) => {
           >
             {loading ? "Generating..." : "Generate Narrative"}
           </button>
-          <button onClick={() => setView("books")} className="rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold">
+          <button onClick={handleSave} className="rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold">
             Save Entry
           </button>
         </div>
