@@ -71,3 +71,12 @@ export async function getUserStories(userId) {
     createdAt: d.data().createdAt?.toDate?.() ?? null,
   }));
 }
+// db.js
+export async function deleteStoryEntry(userId, storyId) {
+  await db
+    .collection("users")
+    .doc(userId)
+    .collection("stories")
+    .doc(storyId)
+    .delete();
+}
