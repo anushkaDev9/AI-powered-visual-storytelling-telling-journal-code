@@ -7,7 +7,7 @@ import aiRoutes from "./ai.js";
 import { upsertUser, userExistsByEmail } from "./db.js";   // ✅ REAL DB FUNCTIONS
 import generateNarrativeRouter from "./ai.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getUserStories } from "./db.js";
+import { getUserStories,deleteStoryEntry } from "./db.js";
 
 
 dotenv.config();
@@ -420,6 +420,18 @@ app.get("/api/stories", async (req, res) => {
   } catch (e) {
     console.error("List stories error:", e);
     res.status(500).json({ error: "server_error" });
+  }
+});
+
+app.delete("/api/story/:id", async (req, res) => {
+  try {
+    const userId = req.session?.profile?.sub;
+    if (!userId) return res.status(401).json({ error: "not_authed" });
+
+    await deleteStoryEntry(userId, req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "delete_failed" });
   }
 });
 app.listen(PORT, () => {
