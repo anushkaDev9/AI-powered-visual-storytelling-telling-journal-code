@@ -2,27 +2,38 @@ import React from "react";
 import Page from "./Page";
 import { useState } from "react";
 const Viewer = ({ setView, story }) => {
-  const styleBtns = [
-    "First-Person (I Perspective)",
-    "Third-Person (Story Mode)",
-    "Creative / Poetic",
-    "Formal / Descriptive",
-  ];
- const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  // Viewer.js
+const shareText = encodeURIComponent(story.narrative || "Check out my AI-generated story!");
+const shareUrl = encodeURIComponent(window.location.href);
 
-  // ⭐ NEW: story line count instead of prompt
-  const [lineCount, setLineCount] = useState(10);
-  const [context, setContext] = useState("");
+const socialLinks = {
+  twitter: `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`,
+  facebook: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
+  linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`,
+  whatsapp: `https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}`,
+};
 
-  const [selectedPerspective, setSelectedPerspective] = useState("first");
-  const [selectedTone, setSelectedTone] = useState("formal");
-   const styles = [
-    { id: "first", label: "First-Person (I Perspective)" },
-    { id: "third", label: "Third-Person (Story Mode)" },
-    { id: "formal", label: "Formal / Descriptive" },
-    { id: "poetic", label: "Creative / Poetic" },
-  ];
+ const handleDelete = async () => {
+  if (!window.confirm("Are you sure you want to delete this story?")) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/api/story/${story.id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    if (res.ok) {
+      alert("Story deleted successfully!");
+      setView("books"); // navigate back to book list
+    } else {
+      alert("Failed to delete story.");
+    }
+  } catch (err) {
+    console.error("Delete error:", err);
+    alert("Error deleting story.");
+  }
+};
+
   if (!story) {
     return (
       <Page title="Viewer">
@@ -54,104 +65,86 @@ const Viewer = ({ setView, story }) => {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
-  {/* Image + description in one box */}
-  <div className="rounded-2xl overflow-hidden ring-1 ring-slate-800 p-4 bg-slate-900/60 text-center">
+  {/* Image + Share section */}
+  <div className="rounded-2xl ring-1 ring-slate-800 p-8 bg-slate-900/60 flex flex-col items-center justify-center text-center space-y-6">
     <img
       src={story.image || require("../Images/book_image.PNG")}
       alt="Story illustration"
-      className="w-full max-w-sm mx-auto h-64 object-cover rounded-xl shadow-lg"
+      className="w-full max-w-sm h-64 object-cover rounded-xl shadow-lg"
     />
-    <p className="text-slate-200 leading-relaxed mt-4 text-base text-left">
-      {story.narrative || "No description available."}
-    </p>
+
+    {/* Share buttons */}
+  <div className="flex flex-wrap justify-center gap-3">
+  <a
+    href={socialLinks.twitter}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-flex items-center gap-2 rounded-full bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
+  >
+    <i className="fa-brands fa-twitter"></i> Twitter
+  </a>
+
+  <a
+    href={socialLinks.facebook}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-flex items-center gap-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
+  >
+    <i className="fa-brands fa-facebook-f"></i> Facebook
+  </a>
+
+  <a
+    href={socialLinks.linkedin}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-flex items-center gap-2 rounded-full bg-blue-800 hover:bg-blue-900 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
+  >
+    <i className="fa-brands fa-linkedin-in"></i> LinkedIn
+  </a>
+
+  <a
+    href={socialLinks.instagram}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="inline-flex items-center gap-2 rounded-full bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
+  >
+    <i className="fa-brands fa-instagram"></i> Instagram
+  </a>
+</div>
+
   </div>
+
+
 
 
 
         {/* Text + Buttons */}
         <div className="rounded-2xl ring-1 ring-slate-800 bg-slate-900/60 p-6 flex flex-col">
-               <p className="text-sm text-slate-300 mb-2">Choose Perspective</p>
-          <div className="grid sm:grid-cols-2 gap-3 mb-6">
-            {styles.slice(0, 2).map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedPerspective(p.id)}
-                className={`rounded-xl px-4 py-3 text-left border transition ${selectedPerspective === p.id
-                  ? "bg-amber-400 text-slate-900 border-amber-300"
-                  : "bg-slate-900/40 border-slate-700 text-slate-200 hover:border-slate-600"
-                  }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tone */}
-          <p className="text-sm text-slate-300 mb-2">Choose Tone</p>
-          <div className="grid sm:grid-cols-2 gap-3 mb-6">
-            {styles.slice(2).map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setSelectedTone(t.id)}
-                className={`rounded-xl px-4 py-3 text-left border transition ${selectedTone === t.id
-                  ? "bg-amber-400 text-slate-900 border-amber-300"
-                  : "bg-slate-900/40 border-slate-700 text-slate-200 hover:border-slate-600"
-                  }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* ⭐ NEW — Line Count Input */}
-          <div className="mt-8">
-            <p className="text-sm text-slate-300 mb-2">How many lines should the story be?</p>
-
-            <input
-              type="number"
-              min="1"
-              max="50"
-              value={lineCount}
-              onChange={(e) => setLineCount(e.target.value)}
-              className="w-full rounded-xl bg-slate-950 text-slate-100 border border-slate-800 p-3 outline-none focus:ring-2 focus:ring-amber-400/40"
-            />
-          </div>
-
-          {/* ⭐ NEW — Context / Keywords Input */}
-          <div className="mt-6">
-            <p className="text-sm text-slate-300 mb-2">Add Context or Keywords (Optional)</p>
-            <textarea
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-              placeholder="E.g., This was a sunny day at the beach..."
-              className="w-full rounded-xl bg-slate-950 text-slate-100 border border-slate-800 p-3 outline-none focus:ring-2 focus:ring-amber-400/40 min-h-[100px]"
-            />
-          </div>
-
-          <div className="mt-6 grid sm:grid-cols-2 gap-3">
-            {styleBtns.map((b) => (
-              <button
-                key={b}
-                className="rounded-xl bg-slate-800 text-slate-200 px-4 py-2 border border-slate-700 hover:border-slate-600 text-sm"
-              >
-                {b}
-              </button>
-            ))}
-          </div>
+                <p className="text-slate-200 leading-relaxed mt-4 text-base text-left">
+      {story.narrative || "No description available."}
+    </p>
 
           <div className="mt-auto pt-6 flex flex-wrap gap-3">
             <button
-              onClick={() => alert("Regenerated!")}
+              onClick={() => {
+      // Store the DB values so Compose can pick them up
+      if (story?.image) localStorage.setItem("SHARED_IMAGE_DATAURL", story.image);
+      if (story?.narrative) localStorage.setItem("AI_NARRATIVE", story.narrative);
+      setView("compose");
+    }}
               className="inline-flex items-center gap-2 rounded-full bg-amber-400 text-slate-900 px-5 py-2 font-semibold"
             >
               Regenerate
             </button>
-            <button className="inline-flex items-center gap-2 rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold">
-              Save
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold">
-              Share
-            </button>
+            <button
+  onClick={handleDelete}
+  className="inline-flex items-center gap-2 rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold"
+>
+  Delete
+</button>
+
+
+
           </div>
         </div>
       </div>
