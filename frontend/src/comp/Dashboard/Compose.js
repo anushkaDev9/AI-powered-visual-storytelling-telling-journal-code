@@ -1,32 +1,67 @@
-import React, { useState } from 'react';
+// Compose.js
+import React, { useEffect, useMemo, useState } from 'react';
 import Page from '../Page';
 
 const Compose = ({ setView, sharedImage }) => {
-  const [text, setText] = useState(() => {
-    return localStorage.getItem("AI_NARRATIVE") || "";
-  });
-
-  // State for regeneration
+  const [text, setText] = useState(() => localStorage.getItem("AI_NARRATIVE") || "");
   const [perspective, setPerspective] = useState("first");
   const [tone, setTone] = useState("formal");
   const [loading, setLoading] = useState(false);
 
   const API_BASE = "http://localhost:3000";
 
+  // Helper: dataURL -> File
+  const dataURLtoFile = async (dataUrl, filename = "image.png") => {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    // try to keep correct mime if possible
+    const type = blob.type || "image/png";
+    return new File([blob], filename, { type });
+  };
+
+  // Build a usable File for uploads no matter where it came from
+  const [imageFile, setImageFile] = useState(sharedImage || null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+
+  useEffect(() => {
+    let revoked;
+    (async () => {
+      if (sharedImage instanceof File || sharedImage instanceof Blob) {
+        setImageFile(sharedImage);
+        const url = URL.createObjectURL(sharedImage);
+        setImagePreviewUrl(url);
+        revoked = url;
+        return;
+      }
+
+      // Fallback to dataURL from localStorage when coming from Viewer
+      const dataUrl = localStorage.getItem("SHARED_IMAGE_DATAURL");
+      if (dataUrl) {
+        const f = await dataURLtoFile(dataUrl, "from-db.png");
+        setImageFile(f);
+        const url = URL.createObjectURL(f);
+        setImagePreviewUrl(url);
+        revoked = url;
+      }
+    })();
+
+    return () => {
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [sharedImage]);
+
   const handleRegenerate = async () => {
-    if (!sharedImage) {
-      alert("No image found for regeneration. Please start over from Create Entry.");
+    if (!imageFile) {
+      alert("No image found for regeneration. Please start over from Create Entry or Viewer.");
       return;
     }
-
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append("image", sharedImage);
+      formData.append("image", imageFile);               // <-- Always a File now
       formData.append("perspective", perspective);
       formData.append("tone", tone);
-      formData.append("lineCount", 10); // Default or could be passed
-      // Context is lost here unless we share it too, but user asked to change tone/perspective
+      formData.append("lineCount", 10);
 
       const response = await fetch(`${API_BASE}/ai/generate-narrative`, {
         method: "POST",
@@ -41,11 +76,34 @@ const Compose = ({ setView, sharedImage }) => {
       } else {
         alert("Failed to regenerate narrative.");
       }
-    } catch (error) {
-      console.error("Regeneration error:", error);
+    } catch (err) {
+      console.error("Regeneration error:", err);
       alert("Error regenerating narrative.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!imageFile) {
+      alert("No image found.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("image", imageFile); // server will convert to dataURL and save
+    formData.append("narrative", text);
+
+    const res = await fetch(`${API_BASE}/ai/save-entry`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+
+    if (res.ok) {
+     
+      setView("books");
+    } else {
+      alert("Could not save.");
     }
   };
 
@@ -55,31 +113,6 @@ const Compose = ({ setView, sharedImage }) => {
     { id: "formal", label: "Formal / Descriptive", type: "tone" },
     { id: "poetic", label: "Creative / Poetic", type: "tone" },
   ];
-// Inside Compose.js, add a save function
-const handleSave = async () => {
-  if (!sharedImage) {
-    alert("No image found.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("image", sharedImage);
-  formData.append("narrative", text);
-
-  const res = await fetch("http://localhost:3000/ai/save-entry", {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
-
-  if (res.ok) {
-    alert("Saved!");
-  } else {
-    alert("Could not save.");
-  }
-  setView("books")
-};
-
 
   return (
     <Page title="Compose">
@@ -89,6 +122,9 @@ const handleSave = async () => {
           Back to Dashboard
         </button>
       </div>
+
+     
+      
       <div className="rounded-2xl ring-1 ring-slate-800 bg-slate-900/60 p-6">
         <textarea
           value={text}
@@ -130,11 +166,8 @@ const handleSave = async () => {
           </button>
         </div>
       </div>
-      <div className="mt-6 rounded-2xl overflow-hidden ring-1 ring-slate-800">
-        {/*<img src={IMAGES.compose} alt="Compose screenshot" className="w-full" />*/}
-      </div>
     </Page>
   );
-}
+};
 
 export default Compose;
