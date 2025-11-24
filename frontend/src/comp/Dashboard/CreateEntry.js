@@ -3,7 +3,7 @@ import Page from '../Page';
 import { AiOutlineCloudUpload, AiOutlineClose } from "react-icons/ai";
 import placeholderImage from '../../Images/book_image.PNG';
 
-const CreateEntry = ({ setView, setSharedImage }) => {
+const CreateEntry = ({ setView, setSharedImages }) => {
   const [selectedPhotoUrls, setSelectedPhotoUrls] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false); // Add loading state
@@ -47,9 +47,9 @@ const CreateEntry = ({ setView, setSharedImage }) => {
     const newUrls = files.map(file => URL.createObjectURL(file));
     setSelectedPhotoUrls(prev => [...prev, ...newUrls]);
 
-    // Share the first image with App for now (or maybe we need to update App to handle multiple)
+    // Share all images with App
     if (newFiles.length > 0) {
-      setSharedImage(newFiles[0]);
+      setSharedImages(newFiles);
     }
   };
 
@@ -59,9 +59,9 @@ const CreateEntry = ({ setView, setSharedImage }) => {
     setSelectedFiles(newFiles);
     setSelectedPhotoUrls(newUrls);
     if (newFiles.length > 0) {
-      setSharedImage(newFiles[0]);
+      setSharedImages(newFiles);
     } else {
-      setSharedImage(null);
+      setSharedImages(null);
     }
   };
 
@@ -87,24 +87,6 @@ const CreateEntry = ({ setView, setSharedImage }) => {
       });
 
       // Handle URL-based images (e.g. from Google Photos) that aren't in selectedFiles
-      // This is a bit tricky if we mix files and URLs. 
-      // For now, let's assume if we have selectedFiles, we use those.
-      // If we have a URL but no file (Google Photos import), we might need to fetch it.
-      // Simplify: iterate through selectedPhotoUrls. If it's a blob URL (starts with blob:), it corresponds to a file in selectedFiles (usually).
-      // If it's a remote URL, we need to fetch it.
-
-      // Actually, let's just handle the case where we might have mixed content.
-      // But for the "Import from Google Photos" flow, it sets "pickedPhotoUrl" in localStorage and redirects.
-      // The current code only handled one.
-      // Let's stick to the previous logic: if we have files, send them. 
-      // If we have ONLY a URL (Google Photos), fetch it.
-      // But now we support multiple. 
-
-      // Strategy: 
-      // 1. Add all `selectedFiles` to formData.
-      // 2. Identify URLs in `selectedPhotoUrls` that are NOT blob URLs (i.e. remote URLs).
-      // 3. Fetch those remote URLs and append as blobs.
-
       const remoteUrls = selectedPhotoUrls.filter(url => !url.startsWith('blob:'));
 
       for (const url of remoteUrls) {
@@ -135,21 +117,41 @@ const CreateEntry = ({ setView, setSharedImage }) => {
 
       localStorage.setItem("AI_NARRATIVE", data.narrative);
 
-      // Save image URLs for Compose to recover if needed
-      // We'll just save the first one for the background/cover for now
+      // Save all image URLs for Compose to recover if needed
       if (selectedPhotoUrls.length > 0) {
-        // If it's a file, convert to base64
-        if (selectedFiles.length > 0) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            localStorage.setItem("SHARED_IMAGE_DATAURL", reader.result);
-            setView("compose");
-          };
-          reader.readAsDataURL(selectedFiles[0]);
-          return; // wait for reader
-        } else {
-          // It's a remote URL
-          localStorage.setItem("SHARED_IMAGE_DATAURL", selectedPhotoUrls[0]);
+        try {
+          const dataUrls = [];
+
+          // Helper to read file as dataURL
+          const readFile = (file) => new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          });
+
+          // Process files
+          for (const file of selectedFiles) {
+            const dUrl = await readFile(file);
+            dataUrls.push(dUrl);
+          }
+
+          // Process remote URLs
+          for (const url of remoteUrls) {
+            dataUrls.push(url);
+          }
+
+          // Clear old keys to free up space
+          localStorage.removeItem("SHARED_IMAGE_DATAURLS");
+          localStorage.removeItem("SHARED_IMAGE_DATAURL");
+
+          localStorage.setItem("SHARED_IMAGE_DATAURLS", JSON.stringify(dataUrls));
+
+          // Legacy support
+          if (dataUrls.length > 0) {
+            localStorage.setItem("SHARED_IMAGE_DATAURL", dataUrls[0]);
+          }
+        } catch (storageErr) {
+          console.warn("LocalStorage quota exceeded. Images will not be persisted for refresh.", storageErr);
         }
       }
 

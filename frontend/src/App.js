@@ -26,8 +26,8 @@ export default function App() {
   // profile: undefined = checking, null = not authed, object = authed
   const [profile, setProfile] = useState(undefined);
 
-  // Shared image for Compose (unchanged)
-  const [sharedImage, setSharedImage] = useState(null);
+  // Shared images for Compose (array)
+  const [sharedImages, setSharedImages] = useState(null);
 
   // NEW: active story to show in Viewer
   const [activeStory, setActiveStory] = useState(null);
@@ -104,7 +104,7 @@ export default function App() {
 
           {view === "dashboard" && (
             <div key="dashboard">
-              <Dashboard setView={setViewWithPayload} setSharedImage={setSharedImage} />
+              <Dashboard setView={setViewWithPayload} setSharedImage={setSharedImages} />
             </div>
           )}
 
@@ -112,14 +112,14 @@ export default function App() {
             <div key="create">
               <CreateEntry
                 setView={setViewWithPayload}
-                setSharedImage={setSharedImage}
+                setSharedImages={setSharedImages}
               />
             </div>
           )}
 
           {view === "compose" && (
             <div key="compose">
-              <Compose setView={setViewWithPayload} sharedImage={sharedImage} />
+              <Compose setView={setViewWithPayload} sharedImages={sharedImages} />
             </div>
           )}
 

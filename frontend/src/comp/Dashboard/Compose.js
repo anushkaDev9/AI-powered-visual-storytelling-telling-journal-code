@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Page from '../Page';
 
-const Compose = ({ setView, sharedImage }) => {
+const Compose = ({ setView, sharedImages }) => {
   const [text, setText] = useState(() => localStorage.getItem("AI_NARRATIVE") || "");
   const [perspective, setPerspective] = useState("first");
   const [tone, setTone] = useState("formal");
@@ -19,34 +19,55 @@ const Compose = ({ setView, sharedImage }) => {
     return new File([blob], filename, { type });
   };
 
-  // Build a usable File for uploads no matter where it came from
-  const [imageFile, setImageFile] = useState(sharedImage || null);
+  // Build a usable File array for uploads no matter where it came from
+  const [imageFiles, setImageFiles] = useState([]);
 
   useEffect(() => {
     (async () => {
-      if (sharedImage instanceof File || sharedImage instanceof Blob) {
-        setImageFile(sharedImage);
+      // 1. Try props first (fresh upload)
+      if (sharedImages && Array.isArray(sharedImages) && sharedImages.length > 0) {
+        setImageFiles(sharedImages);
         return;
       }
 
-      // Fallback to dataURL from localStorage when coming from Viewer
-      const dataUrl = localStorage.getItem("SHARED_IMAGE_DATAURL");
-      if (dataUrl) {
-        const f = await dataURLtoFile(dataUrl, "from-db.png");
-        setImageFile(f);
+      // 2. Fallback to localStorage (refresh or navigation)
+      const savedDataUrls = localStorage.getItem("SHARED_IMAGE_DATAURLS");
+      if (savedDataUrls) {
+        try {
+          const urls = JSON.parse(savedDataUrls);
+          if (Array.isArray(urls) && urls.length > 0) {
+            const files = await Promise.all(urls.map((url, i) => dataURLtoFile(url, `restored-${i}.png`)));
+            setImageFiles(files);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse saved images", e);
+        }
+      }
+
+      // 3. Legacy fallback (single image)
+      const singleDataUrl = localStorage.getItem("SHARED_IMAGE_DATAURL");
+      if (singleDataUrl) {
+        const f = await dataURLtoFile(singleDataUrl, "restored-legacy.png");
+        setImageFiles([f]);
       }
     })();
-  }, [sharedImage]);
+  }, [sharedImages]);
 
   const handleRegenerate = async () => {
-    if (!imageFile) {
-      alert("No image found for regeneration. Please start over from Create Entry or Viewer.");
+    if (imageFiles.length === 0) {
+      alert("No images found for regeneration. Please start over from Create Entry or Viewer.");
       return;
     }
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append("image", imageFile);               // <-- Always a File now
+
+      // Append all images
+      imageFiles.forEach((file) => {
+        formData.append("images", file);
+      });
+
       formData.append("perspective", perspective);
       formData.append("tone", tone);
       formData.append("lineCount", 10);
@@ -73,12 +94,17 @@ const Compose = ({ setView, sharedImage }) => {
   };
 
   const handleSave = async () => {
-    if (!imageFile) {
-      alert("No image found.");
+    if (imageFiles.length === 0) {
+      alert("No images found.");
       return;
     }
     const formData = new FormData();
-    formData.append("image", imageFile); // server will convert to dataURL and save
+
+    // Append all images
+    imageFiles.forEach((file) => {
+      formData.append("images", file);
+    });
+
     formData.append("narrative", text);
 
     const res = await fetch(`${API_BASE}/ai/save-entry`, {
