@@ -40,78 +40,120 @@ const visionClient = new vision.ImageAnnotatorClient({
 // Multer memory upload
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Middleware to handle both single 'image' and multiple 'images'
+const uploadMiddleware = upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'images', maxCount: 5 }
+]);
+
+// Helper to extract files from request
+const getFiles = (req) => {
+  if (req.files?.images) return req.files.images;
+  if (req.files?.image) return req.files.image;
+  return [];
+};
+
 // ----------------------------
 // POST /generate-narrative
 // ----------------------------
-router.post("/generate-narrative", upload.single("image"), async (req, res) => {
+router.post("/generate-narrative", uploadMiddleware, async (req, res) => {
   try {
-    const { lineCount, perspective, tone } = req.body;
-    const imageFile = req.file;
-    if (!imageFile) {
-      return res.status(400).json({ error: "No image uploaded" });
+    const { lineCount, perspective, tone, context } = req.body;
+    const imageFiles = getFiles(req);
+
+    if (!imageFiles || imageFiles.length === 0) {
+      return res.status(400).json({ error: "No images uploaded" });
     }
-    console.log("\n=== FRONTEND DATA ===", { lineCount, perspective, tone });
+    console.log("\n=== FRONTEND DATA ===", { lineCount, perspective, tone, context, fileCount: imageFiles.length });
+
     // ----------------------------
-    // 🔍 Vision API — Label + Object Detection
+    // 🔍 Vision API — Label + Object Detection for ALL images
     // ----------------------------
-    const [visionResult] = await visionClient.batchAnnotateImages({
-      requests: [
-        {
-          image: { content: imageFile.buffer },
-          features: [
-            { type: "LABEL_DETECTION" },
-            { type: "OBJECT_LOCALIZATION" },
-          ],
-        },
-      ],
+    let allDescriptions = [];
+
+    // Process images in parallel for Vision API
+    const visionPromises = imageFiles.map(async (file, index) => {
+      const [visionResult] = await visionClient.batchAnnotateImages({
+        requests: [
+          {
+            image: { content: file.buffer },
+            features: [
+              { type: "LABEL_DETECTION" },
+              { type: "OBJECT_LOCALIZATION" },
+            ],
+          },
+        ],
+      });
+      const annotations = visionResult.responses[0];
+      const labels = (annotations.labelAnnotations || []).map(l => l.description);
+      const objects = (annotations.localizedObjectAnnotations || []).map(o => o.name);
+      return `Image ${index + 1}: Labels: ${labels.join(", ")}. Objects: ${objects.join(", ")}.`;
     });
-    const annotations = visionResult.responses[0];
-    const labels = (annotations.labelAnnotations || []).map(l => l.description);
-    const objects = (annotations.localizedObjectAnnotations || []).map(o => o.name);
-    const description = `Labels: ${labels.join(", ")}. Objects: ${objects.join(", ")}.`;
-    console.log("\n=== VISION OUTPUT ===", description);
+
+    const descriptions = await Promise.all(visionPromises);
+    const combinedDescription = descriptions.join("\n");
+
+    console.log("\n=== VISION OUTPUT ===", combinedDescription);
+
     // ----------------------------
     // ✍ Build narrative prompt
     // ----------------------------
-    const narrativePrompt = `
+    let narrativePrompt = `
 Write a story in a **${tone}** tone and **${perspective}** person perspective.
 The story must be exactly **${lineCount} lines**.
-Here is the image description:
-${description}
+Here is the description of the images provided:
+${combinedDescription}
+`;
+
+    if (context && context.trim().length > 0) {
+      narrativePrompt += `\nAdditional Context provided by user: "${context}"\nUse this context to guide the narrative.\n`;
+    }
+
+    narrativePrompt += `
 Rules:
 - Exactly ${lineCount} lines.
 - Each line must be a complete sentence.
+- Weave the elements from all images together into a cohesive story.
     `;
     console.log("\n=== PROMPT SENT TO GEMINI ===", narrativePrompt);
+
     // ----------------------------
     // 🤖 Gemini API — Correct multimodal call
     // ----------------------------
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-pro", // Use a stable and available model identifier
     });
+
+    // Prepare image parts for Gemini
+    const imageParts = imageFiles.map(file => ({
+      inlineData: {
+        mimeType: file.mimetype,
+        data: file.buffer.toString("base64"),
+      }
+    }));
+
     const result = await model.generateContent({
       contents: [
         {
           role: "user",
           parts: [
             { text: narrativePrompt },
-            {
-              inlineData: {
-                mimeType: imageFile.mimetype,
-                data: imageFile.buffer.toString("base64"), // required by Gemini
-              },
-            },
+            ...imageParts
           ],
         },
       ],
     });
     const text = result.response.text();
     console.log("\n=== STORY GENERATED ===", text);
-    // Base64 encode for frontend
-    const base64 = imageFile.buffer.toString("base64");
+
+    // Base64 encode first image for frontend preview (or all if needed, but usually just one is enough for simple return)
+    // Actually, frontend already has the images. We just return the narrative.
+    // But let's return the first one just in case legacy code needs it.
+    const base64 = imageFiles[0].buffer.toString("base64");
+
     res.json({
       narrative: text,
-      imageUrl: `data:${imageFile.mimetype};base64,${base64}`,
+      imageUrl: `data:${imageFiles[0].mimetype};base64,${base64}`, // Legacy support
       lineCount,
       perspective,
       tone,
@@ -122,7 +164,7 @@ Rules:
   }
 });
 
-router.post("/save-entry", upload.single("image"), async (req, res) => {
+router.post("/save-entry", uploadMiddleware, async (req, res) => {
   try {
     const userId = req.session?.profile?.sub;
     if (!userId) {
@@ -130,25 +172,31 @@ router.post("/save-entry", upload.single("image"), async (req, res) => {
     }
 
     const { narrative } = req.body;
-    const imageFile = req.file;
+    const imageFiles = getFiles(req);
 
-    if (!imageFile) {
-      return res.status(400).json({ error: "No image provided" });
+    if (!imageFiles || imageFiles.length === 0) {
+      return res.status(400).json({ error: "No images provided" });
     }
 
-    // Convert image to Base64 string (Optimized)
-    const optimizedBuffer = await sharp(imageFile.buffer)
-      .resize({ width: 800, withoutEnlargement: true }) // Resize to max width 800px
-      .jpeg({ quality: 80 }) // Compress to JPEG with 80% quality
-      .toBuffer();
+    // Process all images
+    const processedImages = await Promise.all(imageFiles.map(async (file) => {
+      // Convert image to Base64 string (Optimized)
+      const optimizedBuffer = await sharp(file.buffer)
+        .resize({ width: 800, withoutEnlargement: true }) // Resize to max width 800px
+        .jpeg({ quality: 80 }) // Compress to JPEG with 80% quality
+        .toBuffer();
 
-    const base64Image = optimizedBuffer.toString("base64");
-    const finalImage = `data:image/jpeg;base64,${base64Image}`;
+      const base64Image = optimizedBuffer.toString("base64");
+      return `data:image/jpeg;base64,${base64Image}`;
+    }));
 
     // Save everything in Firestore
+    // Note: 'image' field kept for backward compatibility (stores the first image)
+    // 'images' field added for multiple images
     await saveStoryEntry(userId, {
       narrative,
-      image: finalImage,
+      image: processedImages[0], // Primary image
+      images: processedImages,   // All images
     });
 
     res.json({ ok: true });

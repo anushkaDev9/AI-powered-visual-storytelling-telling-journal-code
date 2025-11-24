@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Page from '../Page';
-import { AiOutlineCloudUpload } from "react-icons/ai";
+import { AiOutlineCloudUpload, AiOutlineClose } from "react-icons/ai";
 import placeholderImage from '../../Images/book_image.PNG';
 
 const CreateEntry = ({ setView, setSharedImage }) => {
-  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedPhotoUrls, setSelectedPhotoUrls] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false); // Add loading state
 
   // ⭐ NEW: story line count instead of prompt
@@ -21,25 +21,55 @@ const CreateEntry = ({ setView, setSharedImage }) => {
   // Load saved preview
   useEffect(() => {
     const savedPhoto = localStorage.getItem("pickedPhotoUrl");
-    if (savedPhoto) setSelectedPhotoUrl(savedPhoto);
+    if (savedPhoto) {
+      setSelectedPhotoUrls([savedPhoto]);
+      // If it's a Google Photo URL, we might not have a file object, which is fine.
+    }
   }, []);
 
   // Import from device
   const handleDeviceImport = () => fileInputRef.current.click();
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setSelectedFile(file);
-    setSharedImage(file); // ✅ Share with App
-    setSelectedPhotoUrl(URL.createObjectURL(file));
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    // Limit to 5 images total
+    if (selectedFiles.length + files.length > 5) {
+      alert("You can only upload up to 5 images.");
+      return;
+    }
+
+    const newFiles = [...selectedFiles, ...files];
+    setSelectedFiles(newFiles);
+
+    // Create URLs for preview
+    const newUrls = files.map(file => URL.createObjectURL(file));
+    setSelectedPhotoUrls(prev => [...prev, ...newUrls]);
+
+    // Share the first image with App for now (or maybe we need to update App to handle multiple)
+    if (newFiles.length > 0) {
+      setSharedImage(newFiles[0]);
+    }
+  };
+
+  const removeImage = (index) => {
+    const newFiles = selectedFiles.filter((_, i) => i !== index);
+    const newUrls = selectedPhotoUrls.filter((_, i) => i !== index);
+    setSelectedFiles(newFiles);
+    setSelectedPhotoUrls(newUrls);
+    if (newFiles.length > 0) {
+      setSharedImage(newFiles[0]);
+    } else {
+      setSharedImage(null);
+    }
   };
 
   // ⭐ Send to backend
   const sendToBackend = async () => {
-    // Check if we have either a file or a selected photo URL
-    if (!selectedFile && !selectedPhotoUrl) {
-      alert("Please upload an image first!");
+    // Check if we have any images
+    if (selectedPhotoUrls.length === 0) {
+      alert("Please upload at least one image!");
       return;
     }
 
@@ -51,18 +81,37 @@ const CreateEntry = ({ setView, setSharedImage }) => {
     try {
       let formData = new FormData();
 
-      // Handle file upload vs URL-based image
-      if (selectedFile) {
-        // Direct file upload
-        formData.append("image", selectedFile);
-      } else if (selectedPhotoUrl) {
-        // URL-based image (from Google Photos) - fetch and convert to blob
-        const response = await fetch(selectedPhotoUrl, { credentials: 'include' });
-        if (!response.ok) {
-          throw new Error("Failed to fetch the selected image");
-        }
+      // Append all files
+      selectedFiles.forEach((file) => {
+        formData.append("images", file);
+      });
+
+      // Handle URL-based images (e.g. from Google Photos) that aren't in selectedFiles
+      // This is a bit tricky if we mix files and URLs. 
+      // For now, let's assume if we have selectedFiles, we use those.
+      // If we have a URL but no file (Google Photos import), we might need to fetch it.
+      // Simplify: iterate through selectedPhotoUrls. If it's a blob URL (starts with blob:), it corresponds to a file in selectedFiles (usually).
+      // If it's a remote URL, we need to fetch it.
+
+      // Actually, let's just handle the case where we might have mixed content.
+      // But for the "Import from Google Photos" flow, it sets "pickedPhotoUrl" in localStorage and redirects.
+      // The current code only handled one.
+      // Let's stick to the previous logic: if we have files, send them. 
+      // If we have ONLY a URL (Google Photos), fetch it.
+      // But now we support multiple. 
+
+      // Strategy: 
+      // 1. Add all `selectedFiles` to formData.
+      // 2. Identify URLs in `selectedPhotoUrls` that are NOT blob URLs (i.e. remote URLs).
+      // 3. Fetch those remote URLs and append as blobs.
+
+      const remoteUrls = selectedPhotoUrls.filter(url => !url.startsWith('blob:'));
+
+      for (const url of remoteUrls) {
+        const response = await fetch(url, { credentials: 'include' });
+        if (!response.ok) throw new Error("Failed to fetch one of the selected images");
         const blob = await response.blob();
-        formData.append("image", blob, "imported-image.jpg");
+        formData.append("images", blob, "imported-image.jpg");
       }
 
       formData.append("perspective", selectedPerspective);
@@ -70,14 +119,7 @@ const CreateEntry = ({ setView, setSharedImage }) => {
       formData.append("lineCount", lineCount);
       formData.append("context", context);
 
-      console.log("Sending FormData:", {
-        hasFile: !!selectedFile,
-        hasUrl: !!selectedPhotoUrl,
-        perspective: selectedPerspective,
-        tone: selectedTone,
-        lineCount,
-        context
-      });
+      console.log("Sending FormData with", selectedFiles.length + remoteUrls.length, "images");
 
       const response = await fetch(`${API_BASE}/ai/generate-narrative`, {
         method: "POST",
@@ -87,25 +129,30 @@ const CreateEntry = ({ setView, setSharedImage }) => {
       const data = await response.json();
       console.log("Backend responded:", data);
 
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
       localStorage.setItem("AI_NARRATIVE", data.narrative);
-      // Save image URL for Compose to recover if needed
-      if (selectedPhotoUrl) {
-        // If it's a blob URL, we need to convert to base64 to persist across reloads
-        // For now, if it's a blob URL, we rely on setSharedImage. 
-        // But if we want persistence, we should convert.
-        // Let's just save the URL if it's not a blob, or try to read the file.
-        if (selectedFile) {
+
+      // Save image URLs for Compose to recover if needed
+      // We'll just save the first one for the background/cover for now
+      if (selectedPhotoUrls.length > 0) {
+        // If it's a file, convert to base64
+        if (selectedFiles.length > 0) {
           const reader = new FileReader();
           reader.onloadend = () => {
             localStorage.setItem("SHARED_IMAGE_DATAURL", reader.result);
             setView("compose");
           };
-          reader.readAsDataURL(selectedFile);
+          reader.readAsDataURL(selectedFiles[0]);
           return; // wait for reader
         } else {
-          localStorage.setItem("SHARED_IMAGE_DATAURL", selectedPhotoUrl);
+          // It's a remote URL
+          localStorage.setItem("SHARED_IMAGE_DATAURL", selectedPhotoUrls[0]);
         }
       }
+
       alert("Narrative generated!");
       setView("compose");
     } catch (error) {
@@ -137,9 +184,9 @@ const CreateEntry = ({ setView, setSharedImage }) => {
               <AiOutlineCloudUpload />
             </div>
 
-            <h3 className="text-xl font-semibold">Upload Photo / Reference Photo</h3>
+            <h3 className="text-xl font-semibold">Upload Photos</h3>
             <p className="text-slate-400 mt-2 text-sm">
-              Drag & drop images here or import. Vision AI will analyze objects, scenes, and text.
+              Drag & drop images here or import. Upload up to 5 images.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3">
@@ -153,6 +200,7 @@ const CreateEntry = ({ setView, setSharedImage }) => {
               <input
                 type="file"
                 accept="image/*"
+                multiple // ✅ Allow multiple files
                 ref={fileInputRef}
                 className="hidden"
                 onChange={handleFileChange}
@@ -168,23 +216,40 @@ const CreateEntry = ({ setView, setSharedImage }) => {
               >
                 Import from Google Photos
               </button>
-
-              <button className="rounded-full border border-slate-700 px-4 py-2 font-semibold text-slate-200">
-                Import from Pinterest
-              </button>
             </div>
 
-            <img
-              src={selectedPhotoUrl || placeholderImage}
-              alt="Selected"
-              className="w-full object-cover mt-4 rounded-xl"
-            />
+            {/* Image Grid */}
+            <div className="mt-6 grid grid-cols-2 gap-4">
+              {selectedPhotoUrls.map((url, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={url}
+                    alt={`Selected ${index}`}
+                    className="w-full h-32 object-cover rounded-xl border border-slate-700"
+                  />
+                  <button
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <AiOutlineClose size={14} />
+                  </button>
+                </div>
+              ))}
+              {selectedPhotoUrls.length === 0 && (
+                <div className="col-span-2 flex justify-center">
+                  <img
+                    src={placeholderImage}
+                    alt="Placeholder"
+                    className="w-1/2 opacity-50 rounded-xl"
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Debug info */}
-            {selectedPhotoUrl && (
+            {selectedPhotoUrls.length > 0 && (
               <div className="mt-2 text-xs text-slate-400">
-                {selectedFile ? "📁 File uploaded" : "🔗 Image imported"}
-                {selectedPhotoUrl.includes('localhost:3000') ? " from Google Photos" : ""}
+                {selectedFiles.length} files selected.
               </div>
             )}
           </div>
@@ -256,8 +321,8 @@ const CreateEntry = ({ setView, setSharedImage }) => {
               onClick={sendToBackend}
               disabled={isGenerating}
               className={`rounded-full px-5 py-2 font-semibold transition-all duration-200 flex items-center gap-2 ${isGenerating
-                  ? "bg-amber-400/50 text-slate-700 cursor-not-allowed"
-                  : "bg-amber-400 text-slate-900 hover:bg-amber-300"
+                ? "bg-amber-400/50 text-slate-700 cursor-not-allowed"
+                : "bg-amber-400 text-slate-900 hover:bg-amber-300"
                 }`}
             >
               {isGenerating && (

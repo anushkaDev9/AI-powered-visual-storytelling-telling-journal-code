@@ -60,31 +60,48 @@ export default function Books({ setView, profile }) {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {stories.map((s) => (
-            <div key={s.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="rounded-xl overflow-hidden ring-1 ring-slate-800">
-                <img
-                  src={s.image}            // stored data:URL from /save-entry
-                  alt="Story cover"
-                  className="w-full h-48 object-cover"
-                />
-              </div>
+          {stories.map((s) => {
+            const imagesToShow = s.images && s.images.length > 0 ? s.images : [s.image];
 
-              
-              <button
-  onClick={() => setView("viewer", s)}   // 👈 pass the story object
-  className="mt-4 w-full rounded-full bg-amber-400 text-slate-900 px-5 py-2 font-semibold"
->
-  View
-</button>
-
-              {s.createdAt && (
-                <div className="mt-2 text-xs text-slate-500">
-                  {new Date(s.createdAt).toLocaleString()}
+            return (
+              <div key={s.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                <div className="rounded-xl overflow-hidden ring-1 ring-slate-800">
+                  {imagesToShow.length > 1 ? (
+                    <div className="grid grid-cols-2 gap-0.5 h-48">
+                      {imagesToShow.slice(0, 4).map((img, i) => (
+                        <img
+                          key={i}
+                          src={img}
+                          alt="Story cover"
+                          className="w-full h-full object-cover"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <img
+                      src={s.image}            // stored data:URL from /save-entry
+                      alt="Story cover"
+                      className="w-full h-48 object-cover"
+                    />
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+
+
+                <button
+                  onClick={() => setView("viewer", s)}   // 👈 pass the story object
+                  className="mt-4 w-full rounded-full bg-amber-400 text-slate-900 px-5 py-2 font-semibold"
+                >
+                  View
+                </button>
+
+                {s.createdAt && (
+                  <div className="mt-2 text-xs text-slate-500">
+                    {new Date(s.createdAt).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </Page>
