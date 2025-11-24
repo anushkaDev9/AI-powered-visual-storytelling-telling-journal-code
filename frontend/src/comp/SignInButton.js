@@ -2,75 +2,135 @@ import React, { useState } from "react";
 import Page from "../comp/Page";
 
 export default function SignInPage() {
-  const [email, setEmail] = useState("");
-  const [pwd, setPwd] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
 
- const handleOAuth = (provider) => {
-  if (provider === "google") {
-    window.location.href = "/google"; // <-- redirect to backend
-  }
-  // add others later, e.g. pinterest
-};
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert(`Email login: ${email}`);
+    // Placeholder for future backend integration
+    alert(`${isSignUp ? "Sign Up" : "Sign In"} with: ${JSON.stringify(formData)}`);
+  };
+
+  const handleOAuth = (provider) => {
+    if (provider === "google") {
+      window.location.assign("http://localhost:3000/google");
+    }
+    // pinterest logic placeholder
   };
 
   return (
-    <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-100 ">
-      <Page title="SignInButton">
-        <div
-          role="dialog"
-          aria-labelledby="signin-title"
-          aria-describedby="signin-subtitle"
-          className="w-full max-w-2xl min-h-[650px] rounded-3xl bg-slate-900 shadow-2xl ring-1 ring-slate-800 py-0 px-10 flex flex-col justify-center"
-        >
+    <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-100">
+      <Page title={isSignUp ? "Sign Up" : "Sign In"}>
+        <div className="w-full max-w-md rounded-3xl bg-slate-900 shadow-2xl ring-1 ring-slate-800 p-8 flex flex-col gap-6">
+
           {/* Header */}
-          <div className="mb-6 text-center">
-            <h1
-              id="signin-title"
-              className="text-3xl font-bold text-amber-300 leading-tight"
-            >
-              Sign In
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-amber-300">
+              {isSignUp ? "Create Account" : "Welcome Back"}
             </h1>
-            <p
-              id="signin-subtitle"
-              className="mt-1 text-base text-slate-400"
-            >
-              Continue to your AI Vision Journal
+            <p className="mt-2 text-slate-400">
+              {isSignUp ? "Start your visual storytelling journey" : "Continue to your AI Vision Journal"}
             </p>
           </div>
 
-          {/* OAuth buttons */}
-          <div className="grid gap-4 max-w-md mx-auto w-full">
-            <button
-              onClick={() => window.location.assign("http://localhost:3000/google")}
-              aria-label="Continue with Google"
-              className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-semibold shadow hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
-            >
-              <span className="grid h-6 w-6 place-items-center rounded">
-                {GoogleIcon}
-              </span>
-              <span>Continue with Google</span>
-            </button>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none transition"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Email Address</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none transition"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-slate-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none transition"
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
             <button
-              onClick={() => handleOAuth("pinterest")}
-              aria-label="Continue with Pinterest"
-              className="flex items-center justify-center gap-2 rounded-xl border border-rose-400/40 bg-rose-950/40 px-5 py-3 text-sm font-semibold shadow hover:bg-rose-900/60 focus:outline-none focus:ring-2 focus:ring-rose-500/60"
+              type="submit"
+              className="mt-2 w-full rounded-xl bg-amber-400 text-slate-900 font-bold py-3 hover:bg-amber-300 transition shadow-lg shadow-amber-400/20"
             >
-              <span className="grid h-6 w-6 place-items-center rounded">
-                {PinterestIcon}
-              </span>
-              <span>Continue with Pinterest</span>
+              {isSignUp ? "Sign Up" : "Sign In"}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-slate-800"></div>
+            <span className="flex-shrink-0 mx-4 text-slate-500 text-sm">Or continue with</span>
+            <div className="flex-grow border-t border-slate-800"></div>
+          </div>
+
+          {/* OAuth Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Google Button */}
+            <button
+              onClick={() => handleOAuth("google")}
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 py-3 text-sm font-semibold hover:bg-slate-700 transition"
+            >
+              <span className="w-5 h-5">{GoogleIcon}</span>
+              <span>Google</span>
+            </button>
+
+            {/* Pinterest Button */}
+            <button
+              onClick={() => handleOAuth("pinterest")}
+              className="flex items-center justify-center gap-2 rounded-xl border border-rose-900/30 bg-rose-950/20 py-3 text-sm font-semibold text-rose-200 hover:bg-rose-900/40 transition"
+            >
+              <span className="w-5 h-5">{PinterestIcon}</span>
+              <span>Pinterest</span>
             </button>
           </div>
 
-          {/* Divider */}
-          
+          {/* Toggle */}
+          <div className="text-center text-sm text-slate-400">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-amber-400 font-semibold hover:underline focus:outline-none"
+            >
+              {isSignUp ? "Sign In" : "Sign Up"}
+            </button>
+          </div>
 
-        
         </div>
       </Page>
     </div>
