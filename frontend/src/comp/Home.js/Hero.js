@@ -5,7 +5,7 @@ const Hero = ({ view, setView }) => {
     <div className="relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(1000px_400px_at_30%_-10%,rgba(245,197,24,0.12),transparent_60%),radial-gradient(800px_400px_at_90%_-20%,rgba(56,189,248,0.08),transparent_60%)]" />
       <Page title="Hero">
-        <div className="grid lg:grid-cols-2 gap-8 items-center">
+        <div className="relative z-10 grid lg:grid-cols-2 gap-8 items-center">
           <div>
             <h1 className="text-4xl sm:text-5xl font-bold leading-tight text-amber-300">
               Turn your photos into
@@ -18,14 +18,17 @@ const Hero = ({ view, setView }) => {
             </p>
             <div className="mt-8 flex gap-3">
               <button
-                onClick={() => setView("dashboard")}
-                className="rounded-full bg-amber-400 text-slate-900 px-6 py-3 font-semibold shadow"
+                onClick={() => {
+                  console.log("Get Started clicked");
+                  setView("dashboard");
+                }}
+                className="rounded-full bg-amber-400 text-slate-900 px-6 py-3 font-semibold shadow hover:bg-amber-300 transition cursor-pointer"
               >
                 Get Started
               </button>
               <button
                 onClick={() => setView("books")}
-                className="rounded-full border border-slate-700 px-6 py-3 font-semibold text-slate-200"
+                className="rounded-full border border-slate-700 px-6 py-3 font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
               >
                 View Storybooks
               </button>
