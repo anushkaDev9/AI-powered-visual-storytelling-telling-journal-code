@@ -86,7 +86,7 @@ export default function App() {
 
   return (
     <div className="App">
-      <div className="min-h-screen w-full bg-slate-950 text-slate-50">
+      <div className="min-h-screen w-full bg-slate-950 text-slate-50 flex flex-col">
         <Header
           view={view}
           setView={setViewWithPayload}
@@ -94,7 +94,7 @@ export default function App() {
           setProfile={setProfile}
         />
 
-        <div>
+        <div className="flex-grow">
           {view === "home" && (
             <div key="home">
               <Hero setView={setViewWithPayload} />

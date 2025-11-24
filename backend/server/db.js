@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load JSON manually (this fixes newline issues)
-const serviceAccountPath = path.join(__dirname, "aivisionstoryjournal-478317-firebase-adminsdk-fbsvc-f19b18ddaa.json");
+const serviceAccountPath = path.join(__dirname, "..", "aivisionstoryjournal-478317-firebase-adminsdk-fbsvc-f19b18ddaa.json");
 const serviceAccountRaw = fs.readFileSync(serviceAccountPath, "utf8");
 const serviceAccount = JSON.parse(serviceAccountRaw);
 
