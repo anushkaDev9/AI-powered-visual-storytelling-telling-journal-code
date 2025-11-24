@@ -104,7 +104,7 @@ export default function App() {
 
           {view === "dashboard" && (
             <div key="dashboard">
-              <Dashboard setView={setViewWithPayload} />
+              <Dashboard setView={setViewWithPayload} setSharedImage={setSharedImage} />
             </div>
           )}
 
