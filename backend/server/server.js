@@ -4,10 +4,11 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import aiRoutes from "./ai.js";
-import { upsertUser, userExistsByEmail } from "./db.js";   // ✅ REAL DB FUNCTIONS
+import { upsertUser, userExistsByEmail, createUser, getUserByEmail } from "./db.js";   // ✅ REAL DB FUNCTIONS
 import generateNarrativeRouter from "./ai.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getUserStories,deleteStoryEntry } from "./db.js";
+import { getUserStories, deleteStoryEntry } from "./db.js";
+import bcrypt from "bcrypt";
 
 
 dotenv.config();
@@ -58,7 +59,7 @@ const BASE_SCOPES = [
 
 const DRIVE_SCOPES = [
   "openid",
-  "email", 
+  "email",
   "profile",
   "https://www.googleapis.com/auth/drive.readonly",
 ];
@@ -75,7 +76,7 @@ app.get('/google/drive/images', async (req, res, next) => {
     const accessToken = token || oauth.credentials.access_token;
 
     const pageSize = Math.min(100, Number(req.query.pageSize) || 20);
-    
+
     // Search for image files in Google Drive
     const url = new URL('https://www.googleapis.com/drive/v3/files');
     url.searchParams.set('q', "mimeType contains 'image/' and trashed=false");
@@ -152,7 +153,7 @@ app.get('/api/drive/image/:fileId', async (req, res, next) => {
     // Set appropriate headers and pipe the image
     res.set('Content-Type', metadata.mimeType || 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-    
+
     // Stream the image response
     const buffer = await imageResp.arrayBuffer();
     res.send(Buffer.from(buffer));
@@ -192,18 +193,79 @@ app.get("/api/user/exists", async (req, res, next) => {
   }
 });
 
+// Email/Password Auth Routes
+app.post("/api/signup", async (req, res, next) => {
+  try {
+    const { email, password, name } = req.body;
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
+
+    const exists = await userExistsByEmail(email);
+    if (exists) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const userId = await createUser(email, passwordHash, name);
+
+    // Create session
+    req.session.profile = {
+      sub: userId,
+      email,
+      name,
+      picture: null, // No picture for local auth initially
+    };
+
+    res.json({ ok: true, profile: req.session.profile });
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.post("/api/signin", async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Missing credentials" });
+    }
+
+    const user = await getUserByEmail(email);
+    if (!user || !user.passwordHash) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const match = await bcrypt.compare(password, user.passwordHash);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Create session
+    req.session.profile = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture || null,
+    };
+
+    res.json({ ok: true, profile: req.session.profile });
+  } catch (e) {
+    next(e);
+  }
+});
+
 /* AI routes */
 app.use("/ai", aiRoutes);
 
 // Frontend-compatible auth entrypoint used by CreateEntry button
 app.get('/photos/auth', (req, res) => {
   const state = typeof req.query.next === 'string' ? req.query.next : '';
-  
+
   // Only request the Drive scope for photos
   const driveOnlyScopes = [
     "https://www.googleapis.com/auth/drive.readonly",
   ];
-  
+
   const url = oauth.generateAuthUrl({
     access_type: 'offline',
     prompt: 'select_account',
@@ -223,27 +285,27 @@ app.get('/api/photos/recent', async (req, res, next) => {
     }
 
     console.log('Session tokens:', Object.keys(req.session.tokens));
-    
+
     // Check if we have the drive scope in our tokens
     const storedTokens = req.session.tokens;
     const hasRefreshToken = !!storedTokens.refresh_token;
     const hasAccessToken = !!storedTokens.access_token;
-    
+
     console.log('Has refresh token:', hasRefreshToken);
     console.log('Has access token:', hasAccessToken);
-    
+
     // If we don't have tokens with drive scope, request auth
     if (!hasRefreshToken && !hasAccessToken) {
       console.log('No valid tokens found, requesting auth');
-      return res.status(403).json({ 
-        error: 'drive_scope_missing', 
+      return res.status(403).json({
+        error: 'drive_scope_missing',
         detail: 'Google Drive access not granted',
         needsAuth: true
       });
     }
 
     oauth.setCredentials(storedTokens);
-    
+
     // Check if we have drive scope by attempting to get access token
     let accessToken;
     try {
@@ -254,15 +316,15 @@ app.get('/api/photos/recent', async (req, res, next) => {
       console.log('Failed to get access token:', err.message);
       // Clear invalid tokens and request re-auth
       req.session.tokens = null;
-      return res.status(403).json({ 
-        error: 'drive_scope_missing', 
+      return res.status(403).json({
+        error: 'drive_scope_missing',
         detail: 'Google Drive access not granted',
         needsAuth: true
       });
     }
 
     const pageSize = Math.min(100, Number(req.query.pageSize) || 20);
-    
+
     // Search for image files in Google Drive
     const url = new URL('https://www.googleapis.com/drive/v3/files');
     url.searchParams.set('q', "mimeType contains 'image/' and trashed=false");
@@ -280,12 +342,12 @@ app.get('/api/photos/recent', async (req, res, next) => {
     if (!resp.ok) {
       const text = await resp.text();
       console.log('Google Drive API error:', resp.status, text);
-      
+
       if (resp.status === 403 || resp.status === 401) {
         // Clear tokens and request re-auth
         req.session.tokens = null;
-        return res.status(403).json({ 
-          error: 'drive_scope_missing', 
+        return res.status(403).json({
+          error: 'drive_scope_missing',
           detail: 'Google Drive access not granted',
           needsAuth: true
         });
@@ -295,7 +357,7 @@ app.get('/api/photos/recent', async (req, res, next) => {
 
     const data = await resp.json();
     console.log('Found', data.files?.length || 0, 'images in Drive');
-    
+
     // Convert Drive files to format expected by PhotosPicker
     const items = (data.files || []).map((file) => ({
       id: file.id,
@@ -335,15 +397,15 @@ app.get('/google/callback', async (req, res, next) => {
 
     console.log('OAuth callback - getting tokens...');
     const { tokens } = await oauth.getToken(code);
-    
+
     // Merge new tokens with existing session tokens (for incremental auth)
     const existingTokens = req.session.tokens || {};
     const mergedTokens = { ...existingTokens, ...tokens };
-    
+
     console.log('Existing tokens:', Object.keys(existingTokens));
     console.log('New tokens:', Object.keys(tokens));
     console.log('Merged tokens:', Object.keys(mergedTokens));
-    
+
     oauth.setCredentials(mergedTokens);
     req.session.tokens = oauth.credentials;
 

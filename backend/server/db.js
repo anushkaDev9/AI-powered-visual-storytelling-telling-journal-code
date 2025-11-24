@@ -3,6 +3,7 @@ import { Firestore } from "@google-cloud/firestore";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 
 // Fix ES module dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -79,4 +80,24 @@ export async function deleteStoryEntry(userId, storyId) {
     .collection("stories")
     .doc(storyId)
     .delete();
+}
+
+export async function createUser(email, passwordHash, name) {
+  const userId = crypto.randomUUID();
+  await db.collection("users").doc(userId).set({
+    email,
+    passwordHash,
+    name,
+    provider: "local",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return userId;
+}
+
+export async function getUserByEmail(email) {
+  const snap = await db.collection("users").where("email", "==", email).limit(1).get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  return { id: doc.id, ...doc.data() };
 }

@@ -13,10 +13,30 @@ export default function SignInPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Placeholder for future backend integration
-    alert(`${isSignUp ? "Sign Up" : "Sign In"} with: ${JSON.stringify(formData)}`);
+    const endpoint = isSignUp ? "http://localhost:3000/api/signup" : "http://localhost:3000/api/signin";
+    const body = isSignUp
+      ? { email: formData.email, password: formData.password, name: formData.name }
+      : { email: formData.email, password: formData.password };
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.location.href = "/";
+      } else {
+        alert(data.error || "Authentication failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error. Please ensure backend is running.");
+    }
   };
 
   const handleOAuth = (provider) => {
