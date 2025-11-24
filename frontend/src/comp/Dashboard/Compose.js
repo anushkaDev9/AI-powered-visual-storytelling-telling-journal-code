@@ -1,5 +1,5 @@
 // Compose.js
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Page from '../Page';
 
 const Compose = ({ setView, sharedImage }) => {
@@ -21,16 +21,11 @@ const Compose = ({ setView, sharedImage }) => {
 
   // Build a usable File for uploads no matter where it came from
   const [imageFile, setImageFile] = useState(sharedImage || null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
 
   useEffect(() => {
-    let revoked;
     (async () => {
       if (sharedImage instanceof File || sharedImage instanceof Blob) {
         setImageFile(sharedImage);
-        const url = URL.createObjectURL(sharedImage);
-        setImagePreviewUrl(url);
-        revoked = url;
         return;
       }
 
@@ -39,15 +34,8 @@ const Compose = ({ setView, sharedImage }) => {
       if (dataUrl) {
         const f = await dataURLtoFile(dataUrl, "from-db.png");
         setImageFile(f);
-        const url = URL.createObjectURL(f);
-        setImagePreviewUrl(url);
-        revoked = url;
       }
     })();
-
-    return () => {
-      if (revoked) URL.revokeObjectURL(revoked);
-    };
   }, [sharedImage]);
 
   const handleRegenerate = async () => {
@@ -100,10 +88,12 @@ const Compose = ({ setView, sharedImage }) => {
     });
 
     if (res.ok) {
-     
+      alert("Story saved successfully!");
       setView("books");
     } else {
-      alert("Could not save.");
+      const errData = await res.json();
+      console.error("Save failed:", errData);
+      alert(`Could not save: ${errData.error || "Unknown error"}`);
     }
   };
 
@@ -123,8 +113,8 @@ const Compose = ({ setView, sharedImage }) => {
         </button>
       </div>
 
-     
-      
+
+
       <div className="rounded-2xl ring-1 ring-slate-800 bg-slate-900/60 p-6">
         <textarea
           value={text}
@@ -142,8 +132,8 @@ const Compose = ({ setView, sharedImage }) => {
                   key={s.id + s.type}
                   onClick={() => s.type === "perspective" ? setPerspective(s.id) : setTone(s.id)}
                   className={`rounded-xl px-4 py-2 border transition ${isActive
-                      ? "bg-amber-400 text-slate-900 border-amber-300 font-semibold"
-                      : "bg-slate-800 text-slate-200 border-slate-700 hover:border-slate-600"
+                    ? "bg-amber-400 text-slate-900 border-amber-300 font-semibold"
+                    : "bg-slate-800 text-slate-200 border-slate-700 hover:border-slate-600"
                     }`}
                 >
                   {s.label}

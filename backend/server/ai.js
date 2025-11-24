@@ -5,6 +5,7 @@ import vision from "@google-cloud/vision";
 import cors from "cors";
 import { saveStoryEntry } from "./db.js";
 import dotenv from "dotenv";
+import sharp from "sharp";
 
 
 dotenv.config();
@@ -85,7 +86,7 @@ Rules:
     // ----------------------------
     // 🤖 Gemini API — Correct multimodal call
     // ----------------------------
- const model = genAI.getGenerativeModel({
+    const model = genAI.getGenerativeModel({
       model: "gemini-2.5-pro", // Use a stable and available model identifier
     });
     const result = await model.generateContent({
@@ -135,9 +136,14 @@ router.post("/save-entry", upload.single("image"), async (req, res) => {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    // Convert image to Base64 string
-    const base64Image = imageFile.buffer.toString("base64");
-    const finalImage = `data:${imageFile.mimetype};base64,${base64Image}`;
+    // Convert image to Base64 string (Optimized)
+    const optimizedBuffer = await sharp(imageFile.buffer)
+      .resize({ width: 800, withoutEnlargement: true }) // Resize to max width 800px
+      .jpeg({ quality: 80 }) // Compress to JPEG with 80% quality
+      .toBuffer();
+
+    const base64Image = optimizedBuffer.toString("base64");
+    const finalImage = `data:image/jpeg;base64,${base64Image}`;
 
     // Save everything in Firestore
     await saveStoryEntry(userId, {

@@ -50,7 +50,7 @@ const CreateEntry = ({ setView, setSharedImage }) => {
 
     try {
       let formData = new FormData();
-      
+
       // Handle file upload vs URL-based image
       if (selectedFile) {
         // Direct file upload
@@ -88,8 +88,26 @@ const CreateEntry = ({ setView, setSharedImage }) => {
       console.log("Backend responded:", data);
 
       localStorage.setItem("AI_NARRATIVE", data.narrative);
+      // Save image URL for Compose to recover if needed
+      if (selectedPhotoUrl) {
+        // If it's a blob URL, we need to convert to base64 to persist across reloads
+        // For now, if it's a blob URL, we rely on setSharedImage. 
+        // But if we want persistence, we should convert.
+        // Let's just save the URL if it's not a blob, or try to read the file.
+        if (selectedFile) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            localStorage.setItem("SHARED_IMAGE_DATAURL", reader.result);
+            setView("compose");
+          };
+          reader.readAsDataURL(selectedFile);
+          return; // wait for reader
+        } else {
+          localStorage.setItem("SHARED_IMAGE_DATAURL", selectedPhotoUrl);
+        }
+      }
       alert("Narrative generated!");
-      setView("compose")
+      setView("compose");
     } catch (error) {
       console.error("Error:", error);
       alert("Failed to send request: " + error.message);
@@ -161,11 +179,11 @@ const CreateEntry = ({ setView, setSharedImage }) => {
               alt="Selected"
               className="w-full object-cover mt-4 rounded-xl"
             />
-            
+
             {/* Debug info */}
             {selectedPhotoUrl && (
               <div className="mt-2 text-xs text-slate-400">
-                {selectedFile ? "📁 File uploaded" : "🔗 Image imported"} 
+                {selectedFile ? "📁 File uploaded" : "🔗 Image imported"}
                 {selectedPhotoUrl.includes('localhost:3000') ? " from Google Photos" : ""}
               </div>
             )}
@@ -237,11 +255,10 @@ const CreateEntry = ({ setView, setSharedImage }) => {
             <button
               onClick={sendToBackend}
               disabled={isGenerating}
-              className={`rounded-full px-5 py-2 font-semibold transition-all duration-200 flex items-center gap-2 ${
-                isGenerating
+              className={`rounded-full px-5 py-2 font-semibold transition-all duration-200 flex items-center gap-2 ${isGenerating
                   ? "bg-amber-400/50 text-slate-700 cursor-not-allowed"
                   : "bg-amber-400 text-slate-900 hover:bg-amber-300"
-              }`}
+                }`}
             >
               {isGenerating && (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-700 border-t-transparent"></div>
