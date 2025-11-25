@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OAuth2Client } from "google-auth-library";
 import aiRoutes from "./ai.js";
+import mediaRoutes from "./media.js";
 import { upsertUser, userExistsByEmail, createUser, getUserByEmail } from "./db.js";   // ✅ REAL DB FUNCTIONS
 import generateNarrativeRouter from "./ai.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -256,6 +257,7 @@ app.post("/api/signin", async (req, res, next) => {
 
 /* AI routes */
 app.use("/ai", aiRoutes);
+app.use("/api/media", mediaRoutes);
 
 // Frontend-compatible auth entrypoint used by CreateEntry button
 app.get('/photos/auth', (req, res) => {

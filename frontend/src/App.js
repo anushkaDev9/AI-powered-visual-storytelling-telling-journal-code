@@ -11,6 +11,7 @@ import Books from "./comp/Books";
 import Viewer from "./comp/Viewer";
 import SignInPage from "./comp/SignInButton";
 import PhotosPicker from "./comp/PhotosPicker";
+import MediaLibrary from "./comp/Dashboard/MediaLibrary";
 
 const API_BASE = "http://localhost:3000";
 
@@ -142,6 +143,8 @@ export default function App() {
           {view === "SignInButton" && <SignInPage setView={setViewWithPayload} />}
 
           {view === "photosPicker" && <PhotosPicker setView={setViewWithPayload} />}
+
+          {view === "media-library" && <MediaLibrary setView={setViewWithPayload} />}
         </div>
 
         <footer className="mt-10 border-t border-slate-800">

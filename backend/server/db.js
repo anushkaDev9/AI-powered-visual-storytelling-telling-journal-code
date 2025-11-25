@@ -101,3 +101,30 @@ export async function getUserByEmail(email) {
   const doc = snap.docs[0];
   return { id: doc.id, ...doc.data() };
 }
+
+// Media Library Functions
+export async function saveUserMedia(userId, mediaData) {
+  await db
+    .collection("users")
+    .doc(userId)
+    .collection("media")
+    .add({
+      ...mediaData,
+      createdAt: new Date(),
+    });
+}
+
+export async function getUserMedia(userId) {
+  const snap = await db
+    .collection("users")
+    .doc(userId)
+    .collection("media")
+    .orderBy("createdAt", "desc")
+    .get();
+
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+    createdAt: d.data().createdAt?.toDate?.() ?? null,
+  }));
+}

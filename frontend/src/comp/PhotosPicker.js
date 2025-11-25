@@ -11,13 +11,13 @@ export default function PhotosPicker({ setView }) {
     (async () => {
       try {
         const r = await fetch(`${API_BASE}/api/photos/recent`, { credentials: "include" });
-        
+
         if (r.status === 401) {
           setStatus("error");
           setError("Please sign in first");
           return;
         }
-        
+
         if (r.status === 403) {
           const errorData = await r.json();
           if (errorData.needsAuth) {
@@ -25,11 +25,11 @@ export default function PhotosPicker({ setView }) {
             return;
           }
         }
-        
+
         if (!r.ok) {
           throw new Error(`Failed to load Google Photos: ${r.status}`);
         }
-        
+
         const data = await r.json();
         setItems(data.items || []);
         setStatus("ok");
@@ -40,9 +40,40 @@ export default function PhotosPicker({ setView }) {
     })();
   }, []);
 
-  const choose = (baseUrl) => {
-    localStorage.setItem("pickedPhotoUrl", baseUrl);
-    setView("create"); // go back to CreateEntry
+  const choose = async (baseUrl, photoId, filename, mimeType) => {
+    // Check mode from hash
+    const isLibraryMode = window.location.hash.includes("mode=library");
+
+    if (isLibraryMode) {
+      try {
+        const res = await fetch(`${API_BASE}/api/media/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            googleUrl: baseUrl,
+            googlePhotoId: photoId,
+            filename,
+            mimeType
+          })
+        });
+
+        if (res.ok) {
+          alert("Imported to Library!");
+          window.location.hash = ""; // Clear mode
+          setView("media-library");
+        } else {
+          alert("Failed to import");
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Import error");
+      }
+    } else {
+      // Default: Create Entry mode
+      localStorage.setItem("pickedPhotoUrl", baseUrl);
+      setView("create");
+    }
   };
 
   const handleDriveAuth = () => {
@@ -50,20 +81,20 @@ export default function PhotosPicker({ setView }) {
   };
 
   if (status === "loading") return shell(<div className="text-slate-300">Loading photos…</div>);
-  
+
   if (status === "need_drive_auth") {
     return shell(
       <div className="text-center py-8">
         <h2 className="text-xl font-semibold mb-4">Drive Access Required</h2>
         <p className="text-slate-400 mb-6">You need to grant access to your Google Drive to import images.</p>
         <div className="flex gap-3 justify-center">
-          <button 
+          <button
             onClick={handleDriveAuth}
             className="bg-amber-400 text-slate-900 px-6 py-2 rounded-lg font-semibold hover:bg-amber-300"
           >
             Grant Drive Access
           </button>
-          <button 
+          <button
             onClick={() => setView("create")}
             className="border border-slate-700 px-6 py-2 rounded-lg text-slate-200 hover:border-slate-600"
           >
@@ -71,7 +102,7 @@ export default function PhotosPicker({ setView }) {
           </button>
         </div>
         <div className="mt-4">
-          <button 
+          <button
             onClick={() => {
               // Clear any existing session and redirect to Drive auth
               fetch(`${API_BASE}/api/logout`, { method: 'POST', credentials: 'include' })
@@ -85,12 +116,12 @@ export default function PhotosPicker({ setView }) {
       </div>
     );
   }
-  
+
   if (status === "error") {
     return shell(
       <div className="text-center py-8">
         <div className="text-rose-300 mb-4">Error: {error || "Couldn't load photos"}</div>
-        <button 
+        <button
           onClick={() => setView("create")}
           className="border border-slate-700 px-6 py-2 rounded-lg text-slate-200 hover:border-slate-600"
         >
@@ -115,7 +146,7 @@ export default function PhotosPicker({ setView }) {
             {items.map(m => (
               <button
                 key={m.id}
-                onClick={() => choose(m.baseUrl)}
+                onClick={() => choose(m.baseUrl, m.id, m.filename, m.mimeType)}
                 className="group relative aspect-square overflow-hidden rounded-xl border border-slate-700 hover:border-amber-300"
                 title={m.filename}
               >

@@ -17,7 +17,7 @@ const Dashboard = ({ setView, setSharedImage }) => {
         setView("create");
       }
     },
-    { title: "Media Library", icon: <GrGallery />, desc: "Browse your imported photos.", cta: "View Library", onClick: () => alert("Library coming soon") },
+    { title: "Media Library", icon: <GrGallery />, desc: "Browse your imported photos.", cta: "View Library", onClick: () => setView("media-library") },
     { title: "Narrative Rebuilder", icon: <TbPencilStar />, desc: "Refine or recreate past stories with insights.", cta: "Explore Insights", onClick: () => setView("compose") },
   ];
   return (
