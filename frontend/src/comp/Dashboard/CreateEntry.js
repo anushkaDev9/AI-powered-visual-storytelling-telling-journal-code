@@ -188,7 +188,7 @@ const CreateEntry = ({ setView, setSharedImages }) => {
 
             <h3 className="text-xl font-semibold">Upload Photos</h3>
             <p className="text-slate-400 mt-2 text-sm">
-              Drag & drop images here or import. Upload up to 5 images.
+              Drop Images here . Upload up to 5 images.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3">
