@@ -146,7 +146,7 @@ export default function App() {
 
         <footer className="mt-10 border-t border-slate-800">
           <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-400">
-            © {new Date().getFullYear()} AIVision Journal · Demo UI
+            © {new Date().getFullYear()} AIVision Journal 
           </div>
         </footer>
       </div>
