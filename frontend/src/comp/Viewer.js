@@ -88,7 +88,7 @@ const Viewer = ({ setView, story }) => {
           {/* Share buttons */}
           <div className="flex flex-wrap justify-center gap-3">
             <a
-              href={socialLinks.twitter}
+              href={socialLinks.twitter} {/* Twitter button*/}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
@@ -97,7 +97,7 @@ const Viewer = ({ setView, story }) => {
             </a>
 
             <a
-              href={socialLinks.facebook}
+              href={socialLinks.facebook} {/* facebook button */}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
@@ -106,7 +106,7 @@ const Viewer = ({ setView, story }) => {
             </a>
 
             <a
-              href={socialLinks.linkedin}
+              href={socialLinks.linkedin}{ /*Linkedln button*/}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full bg-blue-800 hover:bg-blue-900 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
@@ -115,7 +115,7 @@ const Viewer = ({ setView, story }) => {
             </a>
 
             <a
-              href={socialLinks.instagram}
+              href={socialLinks.instagram} { /*Instagram button*/}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
