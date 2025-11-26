@@ -133,21 +133,19 @@ const Compose = ({ setView, sharedImages }) => {
   return (
     <Page title="Compose">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-semibold text-slate-100">Create a new Story Entry</h2>
+        <h2 className="text-3xl font-semibold text-slate-100">AI Response</h2>
+  {/* Displayes Ai Response*/}
         <button onClick={() => setView("dashboard")} className="inline-flex items-center gap-2 text-slate-300 hover:text-amber-200">
           Back to Dashboard
         </button>
       </div>
-
-
-
       <div className="rounded-2xl ring-1 ring-slate-800 bg-slate-900/60 p-6">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           className="w-full min-h-[220px] rounded-xl bg-slate-950 text-slate-100 border border-slate-800 p-4 outline-none focus:ring-2 focus:ring-amber-400/40"
         />
-
+  {/* Asks for input from user*/}
         <div className="mt-4">
           <p className="text-sm text-slate-400 mb-2">Regenerate with different style:</p>
           <div className="grid sm:grid-cols-4 gap-3">
@@ -168,7 +166,7 @@ const Compose = ({ setView, sharedImages }) => {
             })}
           </div>
         </div>
-
+{/* Generate Narrative*/}
         <div className="mt-6 flex gap-3">
           <button
             onClick={handleRegenerate}
@@ -177,6 +175,7 @@ const Compose = ({ setView, sharedImages }) => {
           >
             {loading ? "Generating..." : "Generate Narrative"}
           </button>
+            {/*Save button to store the data into firestore*/}
           <button onClick={handleSave} className="rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold">
             Save Entry
           </button>
