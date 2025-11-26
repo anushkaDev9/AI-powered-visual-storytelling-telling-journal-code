@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import Page from '../Page';
 import { AiOutlineCloudUpload, AiOutlineClose } from "react-icons/ai";
 import placeholderImage from '../../Images/book_image.PNG';
-
 const CreateEntry = ({ setView, setSharedImages }) => {
   const [selectedPhotoUrls, setSelectedPhotoUrls] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false); // Add loading state
-
   // ⭐ NEW: story line count instead of prompt
   const [lineCount, setLineCount] = useState(10);
   const [context, setContext] = useState("");
@@ -214,20 +212,19 @@ const CreateEntry = ({ setView, setSharedImages }) => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-semibold text-slate-100">Create a new Entry</h2>
       </div>
-
       <div className="grid lg:grid-cols-2 gap-8">
-        {/* LEFT SIDE */}
+        {/* LEFT SIDE asks for photo from user */}
         <div className="rounded-2xl ring-1 ring-slate-800 overflow-hidden bg-slate-900/60 p-6">
           <div className="mx-auto max-w-md">
             <div className="h-14 w-14 rounded-xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-200 mb-4">
               <AiOutlineCloudUpload />
             </div>
-
+                {/*upload photos div */}
             <h3 className="text-xl font-semibold">Upload Photos</h3>
             <p className="text-slate-400 mt-2 text-sm">
               Drop Images here . Upload up to 5 images.
             </p>
-
+        {/*uploads photos from device */}
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 className="rounded-full bg-amber-400 text-slate-900 px-4 py-2 font-semibold"
@@ -239,12 +236,12 @@ const CreateEntry = ({ setView, setSharedImages }) => {
               <input
                 type="file"
                 accept="image/*"
-                multiple // ✅ Allow multiple files
+                multiple //  Allow multiple files
                 ref={fileInputRef}
                 className="hidden"
                 onChange={handleFileChange}
               />
-
+   {/*upload google photos button */}
               <button
                 className="rounded-full border border-slate-700 px-4 py-2 font-semibold text-slate-200"
                 onClick={() =>
