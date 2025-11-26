@@ -13,10 +13,8 @@ const __dirname = path.dirname(__filename);
 const serviceAccountPath = path.join(__dirname, "..", "aivisionstoryjournal-478317-firebase-adminsdk-fbsvc-f19b18ddaa.json");
 const serviceAccountRaw = fs.readFileSync(serviceAccountPath, "utf8");
 const serviceAccount = JSON.parse(serviceAccountRaw);
-
 // Fix private key: replace escaped \n with real newlines
 serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
-
 export const db = new Firestore({
   projectId: serviceAccount.project_id,
   credentials: {
@@ -24,10 +22,7 @@ export const db = new Firestore({
     private_key: serviceAccount.private_key,
   },
 });
-
-// ----------- FUNCTIONS -----------
-
-export async function upsertUser(sub, data) {
+export async function upsertUser(sub, data) { // inserting user in firestore
   await db.collection("users").doc(sub).set(
     {
       ...data,
@@ -38,8 +33,7 @@ export async function upsertUser(sub, data) {
     { merge: true }
   );
 }
-
-export async function userExistsByEmail(email) {
+export async function userExistsByEmail(email) {  // checks usesr if exists 
   const snap = await db
     .collection("users")
     .where("email", "==", email)
@@ -47,7 +41,7 @@ export async function userExistsByEmail(email) {
     .get();
   return !snap.empty;
 }
-export async function saveStoryEntry(userId, data) {
+export async function saveStoryEntry(userId, data) { //saves story in firstore 
   await db
     .collection("users")
     .doc(userId)
@@ -57,8 +51,7 @@ export async function saveStoryEntry(userId, data) {
       createdAt: new Date(),
     });
 }
-// db.js
-export async function getUserStories(userId) {
+export async function getUserStories(userId) { //get stories 
   const snap = await db
     .collection("users")
     .doc(userId)
@@ -72,8 +65,8 @@ export async function getUserStories(userId) {
     createdAt: d.data().createdAt?.toDate?.() ?? null,
   }));
 }
-// db.js
-export async function deleteStoryEntry(userId, storyId) {
+
+export async function deleteStoryEntry(userId, storyId) { //deletes the story 
   await db
     .collection("users")
     .doc(userId)
