@@ -22,8 +22,14 @@ const CreateEntry = ({ setView, setSharedImages }) => {
   useEffect(() => {
     const savedPhoto = localStorage.getItem("pickedPhotoUrl");
     if (savedPhoto) {
-      setSelectedPhotoUrls([savedPhoto]);
-      // If it's a Google Photo URL, we might not have a file object, which is fine.
+      setSelectedPhotoUrls(prev => [...prev, savedPhoto]);
+      localStorage.removeItem("pickedPhotoUrl"); // Clear after use
+    }
+
+    const savedMedia = localStorage.getItem("pickedMediaUrl");
+    if (savedMedia) {
+      setSelectedPhotoUrls(prev => [...prev, savedMedia]);
+      localStorage.removeItem("pickedMediaUrl"); // Clear after use
     }
   }, []);
 
@@ -217,6 +223,16 @@ const CreateEntry = ({ setView, setSharedImages }) => {
                 }
               >
                 Import from Google Photos
+              </button>
+
+              <button
+                className="rounded-full border border-slate-700 px-4 py-2 font-semibold text-slate-200"
+                onClick={() => {
+                  window.location.hash = "mode=pick";
+                  setView("media-library");
+                }}
+              >
+                Import from Media Library
               </button>
             </div>
 

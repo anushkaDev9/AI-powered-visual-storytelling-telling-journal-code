@@ -50,16 +50,27 @@ const MediaLibrary = ({ setView }) => {
             }
         } catch (err) {
             console.error("Upload error", err);
-            alert("Upload error");
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleImageClick = (item) => {
+        const isPickMode = window.location.hash.includes("mode=pick");
+
+        if (isPickMode) {
+            localStorage.setItem("pickedMediaUrl", item.imageUrl);
+            window.location.hash = ""; // Clear mode
+            setView("create");
         }
     };
 
     return (
         <Page title="Media Library">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-semibold text-slate-100">Media Library</h2>
+                <h2 className="text-3xl font-semibold text-slate-100">
+                    {window.location.hash.includes("mode=pick") ? "Pick a Photo" : "Media Library"}
+                </h2>
                 <button onClick={() => setView("dashboard")} className="text-slate-300 hover:text-amber-200">
                     Back to Dashboard
                 </button>
@@ -85,13 +96,7 @@ const MediaLibrary = ({ setView }) => {
                 {/* Import from Google Photos Card */}
                 <div className="aspect-square rounded-2xl border-2 border-dashed border-slate-700 hover:border-blue-400/50 bg-slate-900/30 flex flex-col items-center justify-center cursor-pointer transition group"
                     onClick={() => {
-                        // We need to tell PhotosPicker we are in "library" mode.
-                        // Since PhotosPicker is a separate view, we can pass a param or use state in App.js.
-                        // For now, let's assume we can pass a prop via setView if we change App.js, 
-                        // or we can use a URL param if we were using real routing.
-                        // Since we are using simple state routing, we'll need to update App.js to handle this.
-                        // For now, let's just set the view and we'll handle the mode passing in App.js
-                        window.location.hash = "mode=library"; // Simple hack to pass state for now
+                        window.location.hash = "mode=library";
                         setView("photosPicker");
                     }}>
                     <div className="h-12 w-12 rounded-full bg-slate-800 group-hover:bg-blue-400/20 flex items-center justify-center mb-2 transition">
@@ -102,7 +107,11 @@ const MediaLibrary = ({ setView }) => {
 
                 {/* Media Items */}
                 {media.map((item) => (
-                    <div key={item.id} className="aspect-square rounded-2xl overflow-hidden relative group border border-slate-800 bg-slate-900">
+                    <div
+                        key={item.id}
+                        className="aspect-square rounded-2xl overflow-hidden relative group border border-slate-800 bg-slate-900 cursor-pointer"
+                        onClick={() => handleImageClick(item)}
+                    >
                         <img
                             src={item.imageUrl}
                             alt={item.filename}
