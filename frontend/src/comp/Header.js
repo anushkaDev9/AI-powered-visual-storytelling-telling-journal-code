@@ -10,7 +10,6 @@ const Header = ({ view, setView, profile, setProfile }) => {
       `${API_BASE}/google?next=${encodeURIComponent("/?view=books")}`
     );
   };
-
   const logout = async () => {
     try {
       await fetch(`${API_BASE}/api/logout`, {
@@ -28,7 +27,6 @@ const Header = ({ view, setView, profile, setProfile }) => {
   return (
     <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur border-b border-slate-800">
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between text-slate-100">
-
         {/* Logo + Name */}
         <div onClick={() => setView("home")} className="flex items-center gap-3 cursor-pointer">
           <div className="h-9 w-9 rounded-xl bg-amber-400/15 border border-amber-300/30 grid place-items-center">
@@ -36,7 +34,6 @@ const Header = ({ view, setView, profile, setProfile }) => {
           </div>
           <span className="font-semibold text-lg">AIVision Journal</span>
         </div>
-
         {/* Nav */}
         <nav className="hidden sm:flex items-center gap-7">
           <button
@@ -45,14 +42,12 @@ const Header = ({ view, setView, profile, setProfile }) => {
           >
             Home
           </button>
-
           <button
             className={`text-sm ${view === "dashboard" ? "text-amber-300" : "text-slate-300 hover:text-amber-200"}`}
             onClick={() => setView("dashboard")}
           >
             Dashboard
           </button>
-
           <button
             className={`text-sm ${view === "books" ? "text-amber-300" : "text-slate-300 hover:text-amber-200"}`}
             onClick={() => setView("books")}
@@ -60,7 +55,6 @@ const Header = ({ view, setView, profile, setProfile }) => {
             My books
           </button>
         </nav>
-
         {/* RIGHT SIDE — Sign In OR Profile + Logout */}
         <div>
           {profile ? (
