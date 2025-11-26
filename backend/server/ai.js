@@ -6,10 +6,7 @@ import cors from "cors";
 import { saveStoryEntry } from "./db.js";
 import dotenv from "dotenv";
 import sharp from "sharp";
-
-
 dotenv.config();
-
 const {
   PORT = 3000,
   SESSION_SECRET,
@@ -21,41 +18,31 @@ const {
   GEMINI_API_KEY,
   FRONTEND_ORIGIN = "http://localhost:3001",
 } = process.env;
-
 const router = express.Router();
-
 // Allow frontend
 router.use(cors({ origin: "http://localhost:3001" }));
-
-// ✅ Initialize Gemini
+// Initialize Gemini
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 console.log("Gemini client initialized.");
-
 // Vision client
 const visionClient = new vision.ImageAnnotatorClient({
   projectId: GOOGLE_PROJECT_ID,
   keyFilename: GOOGLE_APPLICATION_CREDENTIALS,
 });
-
 // Multer memory upload
 const upload = multer({ storage: multer.memoryStorage() });
-
 // Middleware to handle both single 'image' and multiple 'images'
 const uploadMiddleware = upload.fields([
   { name: 'image', maxCount: 1 },
   { name: 'images', maxCount: 5 }
 ]);
-
 // Helper to extract files from request
 const getFiles = (req) => {
   if (req.files?.images) return req.files.images;
   if (req.files?.image) return req.files.image;
   return [];
 };
-
-// ----------------------------
 // POST /generate-narrative
-// ----------------------------
 router.post("/generate-narrative", uploadMiddleware, async (req, res) => {
   try {
     const { lineCount, perspective, tone, context } = req.body;
@@ -65,12 +52,8 @@ router.post("/generate-narrative", uploadMiddleware, async (req, res) => {
       return res.status(400).json({ error: "No images uploaded" });
     }
     console.log("\n=== FRONTEND DATA ===", { lineCount, perspective, tone, context, fileCount: imageFiles.length });
-
-    // ----------------------------
-    // 🔍 Vision API — Label + Object Detection for ALL images
-    // ----------------------------
+    //  Vision API — Label + Object Detection for ALL images
     let allDescriptions = [];
-
     // Process images in parallel for Vision API
     const visionPromises = imageFiles.map(async (file, index) => {
       const [visionResult] = await visionClient.batchAnnotateImages({
@@ -89,26 +72,20 @@ router.post("/generate-narrative", uploadMiddleware, async (req, res) => {
       const objects = (annotations.localizedObjectAnnotations || []).map(o => o.name);
       return `Image ${index + 1}: Labels: ${labels.join(", ")}. Objects: ${objects.join(", ")}.`;
     });
-
     const descriptions = await Promise.all(visionPromises);
     const combinedDescription = descriptions.join("\n");
 
     console.log("\n=== VISION OUTPUT ===", combinedDescription);
-
-    // ----------------------------
     // ✍ Build narrative prompt
-    // ----------------------------
     let narrativePrompt = `
 Write a story in a **${tone}** tone and **${perspective}** person perspective.
 The story must be exactly **${lineCount} lines**.
 Here is the description of the images provided:
 ${combinedDescription}
 `;
-
     if (context && context.trim().length > 0) {
       narrativePrompt += `\nAdditional Context provided by user: "${context}"\nUse this context to guide the narrative.\n`;
     }
-
     narrativePrompt += `
 Rules:
 - Exactly ${lineCount} lines.
@@ -116,14 +93,10 @@ Rules:
 - Weave the elements from all images together into a cohesive story.
     `;
     console.log("\n=== PROMPT SENT TO GEMINI ===", narrativePrompt);
-
-    // ----------------------------
-    // 🤖 Gemini API — Correct multimodal call
-    // ----------------------------
+    //  Gemini API — Correct multimodal call
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-pro", // Use a stable and available model identifier
     });
-
     // Prepare image parts for Gemini
     const imageParts = imageFiles.map(file => ({
       inlineData: {
@@ -131,7 +104,6 @@ Rules:
         data: file.buffer.toString("base64"),
       }
     }));
-
     const result = await model.generateContent({
       contents: [
         {
@@ -145,12 +117,10 @@ Rules:
     });
     const text = result.response.text();
     console.log("\n=== STORY GENERATED ===", text);
-
     // Base64 encode first image for frontend preview (or all if needed, but usually just one is enough for simple return)
     // Actually, frontend already has the images. We just return the narrative.
     // But let's return the first one just in case legacy code needs it.
     const base64 = imageFiles[0].buffer.toString("base64");
-
     res.json({
       narrative: text,
       imageUrl: `data:${imageFiles[0].mimetype};base64,${base64}`, // Legacy support
@@ -177,7 +147,6 @@ router.post("/save-entry", uploadMiddleware, async (req, res) => {
     if (!imageFiles || imageFiles.length === 0) {
       return res.status(400).json({ error: "No images provided" });
     }
-
     // Process all images
     const processedImages = await Promise.all(imageFiles.map(async (file) => {
       // Convert image to Base64 string (Optimized)
