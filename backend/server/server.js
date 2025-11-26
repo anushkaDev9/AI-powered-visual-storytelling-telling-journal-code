@@ -11,9 +11,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getUserStories, deleteStoryEntry } from "./db.js";
 import bcrypt from "bcrypt";
 
-
 dotenv.config();
-
 const {
   PORT = 3000,
   SESSION_SECRET,
@@ -22,19 +20,15 @@ const {
   GOOGLE_REDIRECT_URI,
   FRONTEND_ORIGIN = "http://localhost:3001",
 } = process.env;
-
-const app = express();
-
+const app = express();//initializes an Express application instance.
 app.use(
   cors({
     origin: [FRONTEND_ORIGIN, "http://localhost:5173"],
     credentials: true,
   })
 );
-
-app.use(express.json());
-app.set("trust proxy", 1);
-
+app.use(express.json());//enables JSON parsing for incoming requests.
+app.set("trust proxy", 1);//tells Express to trust the first proxy
 app.use(
   session({
     name: "sess",
@@ -45,46 +39,38 @@ app.use(
     maxAge: 7 * 24 * 60 * 60 * 1000,
   })
 );
-
 const oauth = new OAuth2Client(
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_REDIRECT_URI
-);
-
+);// Getting environment variables from the .env file
 const BASE_SCOPES = [
   "openid",
   "email",
   "profile",
 ];
-
 const DRIVE_SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/drive.readonly",
 ];
-
 // Google Drive API endpoints for images
 // - GET /google/drive/images -> lists image files from Drive
 // - GET /google/drive/images/:id -> returns a single image file
 app.get('/google/drive/images', async (req, res, next) => {
   try {
     if (!req.session?.tokens) return res.status(401).json({ error: 'not_authed' });
-
     oauth.setCredentials(req.session.tokens);
     const { token } = await oauth.getAccessToken();
     const accessToken = token || oauth.credentials.access_token;
-
     const pageSize = Math.min(100, Number(req.query.pageSize) || 20);
-
     // Search for image files in Google Drive
     const url = new URL('https://www.googleapis.com/drive/v3/files');
     url.searchParams.set('q', "mimeType contains 'image/' and trashed=false");
     url.searchParams.set('pageSize', String(pageSize));
     url.searchParams.set('fields', 'files(id,name,mimeType,webViewLink,thumbnailLink,createdTime),nextPageToken');
     url.searchParams.set('orderBy', 'createdTime desc');
-
     const resp = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -93,7 +79,6 @@ app.get('/google/drive/images', async (req, res, next) => {
       const text = await resp.text();
       return res.status(resp.status).json({ error: 'google_drive_error', detail: text });
     }
-
     const data = await resp.json();
     const items = (data.files || []).map((file) => ({
       id: file.id,
@@ -111,19 +96,16 @@ app.get('/google/drive/images', async (req, res, next) => {
     next(e);
   }
 });
-
 // Proxy endpoint to serve Google Drive images with authentication
 app.get('/api/drive/image/:fileId', async (req, res, next) => {
   try {
     if (!req.session?.tokens) {
       return res.status(401).json({ error: 'not_authed' });
     }
-
     const { fileId } = req.params;
     oauth.setCredentials(req.session.tokens);
     const { token } = await oauth.getAccessToken();
     const accessToken = token || oauth.credentials.access_token;
-
     // Get file metadata first
     const metadataUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType,thumbnailLink`;
     const metadataResp = await fetch(metadataUrl, {
@@ -133,54 +115,47 @@ app.get('/api/drive/image/:fileId', async (req, res, next) => {
     if (!metadataResp.ok) {
       return res.status(404).json({ error: 'file_not_found' });
     }
-
     const metadata = await metadataResp.json();
-
     // Try thumbnail first, then fallback to direct download
     let imageUrl = metadata.thumbnailLink;
     if (!imageUrl) {
       imageUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
     }
-
     // Fetch the image
     const imageResp = await fetch(imageUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-
     if (!imageResp.ok) {
       return res.status(404).json({ error: 'image_not_found' });
     }
-
     // Set appropriate headers and pipe the image
     res.set('Content-Type', metadata.mimeType || 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-
     // Stream the image response
     const buffer = await imageResp.arrayBuffer();
     res.send(Buffer.from(buffer));
-
   } catch (e) {
     console.error('Drive image proxy error:', e);
     next(e);
   }
 });
 
-/* USER APIs */
+//returns whether the user is authenticated based on session tokens
 app.get("/api/me", (req, res) => {
   res.json({ authed: !!req.session?.tokens });
 });
-
+// returns the user’s profile if logged in, otherwise sends a 401 error.
 app.get("/api/profile", (req, res) => {
   if (!req.session?.profile)
     return res.status(401).json({ error: "not_authed" });
   res.json(req.session.profile);
 });
-
+// logs the user out by clearing the session
 app.post("/api/logout", (req, res) => {
   req.session = null;
   res.json({ ok: true });
 });
-
+// checks if user exists
 app.get("/api/user/exists", async (req, res, next) => {
   try {
     const email =
@@ -201,15 +176,13 @@ app.post("/api/signup", async (req, res, next) => {
     if (!email || !password || !name) {
       return res.status(400).json({ error: "Missing fields" });
     }
-
+    // checks if user exists
     const exists = await userExistsByEmail(email);
     if (exists) {
       return res.status(400).json({ error: "User already exists" });
     }
-
     const passwordHash = await bcrypt.hash(password, 10);
     const userId = await createUser(email, passwordHash, name);
-
     // Create session
     req.session.profile = {
       sub: userId,
@@ -217,30 +190,26 @@ app.post("/api/signup", async (req, res, next) => {
       name,
       picture: null, // No picture for local auth initially
     };
-
     res.json({ ok: true, profile: req.session.profile });
   } catch (e) {
     next(e);
   }
 });
-
+// checks login form
 app.post("/api/signin", async (req, res, next) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Missing credentials" });
     }
-
     const user = await getUserByEmail(email);
     if (!user || !user.passwordHash) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-
     // Create session
     req.session.profile = {
       sub: user.id,
@@ -255,19 +224,17 @@ app.post("/api/signin", async (req, res, next) => {
   }
 });
 
-/* AI routes */
+// gets the route from ai.js file 
 app.use("/ai", aiRoutes);
+// gets the route from mediaRoutes file 
 app.use("/api/media", mediaRoutes);
-
 // Frontend-compatible auth entrypoint used by CreateEntry button
 app.get('/photos/auth', (req, res) => {
   const state = typeof req.query.next === 'string' ? req.query.next : '';
-
   // Only request the Drive scope for photos
   const driveOnlyScopes = [
     "https://www.googleapis.com/auth/drive.readonly",
   ];
-
   const url = oauth.generateAuthUrl({
     access_type: 'offline',
     prompt: 'select_account',
@@ -277,7 +244,6 @@ app.get('/photos/auth', (req, res) => {
   });
   res.redirect(url);
 });
-
 // Frontend endpoint expected by PhotosPicker component
 app.get('/api/photos/recent', async (req, res, next) => {
   try {
@@ -285,17 +251,13 @@ app.get('/api/photos/recent', async (req, res, next) => {
       console.log('No tokens in session');
       return res.status(401).json({ error: 'not_authed' });
     }
-
     console.log('Session tokens:', Object.keys(req.session.tokens));
-
     // Check if we have the drive scope in our tokens
     const storedTokens = req.session.tokens;
     const hasRefreshToken = !!storedTokens.refresh_token;
     const hasAccessToken = !!storedTokens.access_token;
-
     console.log('Has refresh token:', hasRefreshToken);
     console.log('Has access token:', hasAccessToken);
-
     // If we don't have tokens with drive scope, request auth
     if (!hasRefreshToken && !hasAccessToken) {
       console.log('No valid tokens found, requesting auth');
@@ -305,9 +267,7 @@ app.get('/api/photos/recent', async (req, res, next) => {
         needsAuth: true
       });
     }
-
     oauth.setCredentials(storedTokens);
-
     // Check if we have drive scope by attempting to get access token
     let accessToken;
     try {
@@ -324,27 +284,21 @@ app.get('/api/photos/recent', async (req, res, next) => {
         needsAuth: true
       });
     }
-
     const pageSize = Math.min(100, Number(req.query.pageSize) || 20);
-
     // Search for image files in Google Drive
     const url = new URL('https://www.googleapis.com/drive/v3/files');
     url.searchParams.set('q', "mimeType contains 'image/' and trashed=false");
     url.searchParams.set('pageSize', String(pageSize));
     url.searchParams.set('fields', 'files(id,name,mimeType,webViewLink,thumbnailLink,createdTime),nextPageToken');
     url.searchParams.set('orderBy', 'createdTime desc');
-
     console.log('Making request to Google Drive API for images...');
     const resp = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-
     console.log('Google Drive API response status:', resp.status);
-
     if (!resp.ok) {
       const text = await resp.text();
       console.log('Google Drive API error:', resp.status, text);
-
       if (resp.status === 403 || resp.status === 401) {
         // Clear tokens and request re-auth
         req.session.tokens = null;
@@ -356,10 +310,8 @@ app.get('/api/photos/recent', async (req, res, next) => {
       }
       return res.status(resp.status).json({ error: 'google_drive_error', detail: text });
     }
-
     const data = await resp.json();
     console.log('Found', data.files?.length || 0, 'images in Drive');
-
     // Convert Drive files to format expected by PhotosPicker
     const items = (data.files || []).map((file) => ({
       id: file.id,
@@ -371,7 +323,6 @@ app.get('/api/photos/recent', async (req, res, next) => {
         creationTime: file.createdTime
       },
     }));
-
     res.json({ items, nextPageToken: data.nextPageToken || null });
   } catch (e) {
     console.error('Drive API error:', e);
@@ -390,48 +341,37 @@ app.get('/google', (req, res) => {
   });
   res.redirect(url);
 });
-
 // OAuth callback that Google redirects back to — save tokens and profile to session
 app.get('/google/callback', async (req, res, next) => {
   try {
     const { code } = req.query;
     if (!code) throw new Error('No code returned from Google');
-
     console.log('OAuth callback - getting tokens...');
     const { tokens } = await oauth.getToken(code);
-
     // Merge new tokens with existing session tokens (for incremental auth)
     const existingTokens = req.session.tokens || {};
     const mergedTokens = { ...existingTokens, ...tokens };
-
     console.log('Existing tokens:', Object.keys(existingTokens));
     console.log('New tokens:', Object.keys(tokens));
     console.log('Merged tokens:', Object.keys(mergedTokens));
-
     oauth.setCredentials(mergedTokens);
     req.session.tokens = oauth.credentials;
-
     const idToken = oauth.credentials.id_token || tokens.id_token;
     if (!idToken) throw new Error('No id_token returned from Google');
-
     const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString('utf8'));
-
     req.session.profile = {
       sub: payload.sub,
       email: payload.email,
       name: payload.name,
       picture: payload.picture,
     };
-
     // Persist user in your DB
     await upsertUser(payload.sub, {
       email: payload.email ?? null,
       name: payload.name ?? null,
       picture: payload.picture ?? null,
     });
-
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-
     // Determine redirect target:
     let nextUrl;
     if (state) {
@@ -460,13 +400,11 @@ app.get('/google/callback', async (req, res, next) => {
     }
 
     console.log('OAuth callback redirecting to:', nextUrl);
-
     res.redirect(nextUrl);
   } catch (e) {
     next(e);
   }
 });
-
 app.use((err, _req, res, _next) => {
   console.error("❌ Server error:", err);
   res.status(500).json({ error: "server_error", detail: String(err) });
@@ -486,7 +424,7 @@ app.get("/api/stories", async (req, res) => {
     res.status(500).json({ error: "server_error" });
   }
 });
-
+// delete story middleware 
 app.delete("/api/story/:id", async (req, res) => {
   try {
     const userId = req.session?.profile?.sub;
