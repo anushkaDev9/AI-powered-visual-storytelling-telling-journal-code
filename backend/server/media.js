@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import sharp from "sharp";
-import { saveUserMedia, getUserMedia } from "./db.js";
+import { saveUserMedia, getUserMedia, deleteUserMedia } from "./db.js";
 
 const router = express.Router();
 
@@ -51,24 +51,57 @@ router.post("/import", async (req, res) => {
         const userId = req.session?.profile?.sub;
         if (!userId) return res.status(401).json({ error: "not_authed" });
 
-        const { googlePhotoId, googleUrl, filename, mimeType } = req.body;
-
-        if (!googleUrl) {
-            return res.status(400).json({ error: "Missing Google Photo URL" });
+        if (!req.session?.tokens) {
+            return res.status(401).json({ error: "not_authed - no tokens" });
         }
 
-        // We can save the URL directly. 
-        // Note: Google Photos URLs might expire or require auth headers to view.
-        // Since we are proxying them via /api/drive/image/:id in PhotosPicker, 
-        // we should ideally save that proxy URL or the ID.
-        // The PhotosPicker passes `baseUrl` which is our proxy URL.
+        const { googlePhotoId, googleUrl, filename, mimeType } = req.body;
+
+        if (!googlePhotoId) {
+            return res.status(400).json({ error: "Missing Google Photo ID" });
+        }
+
+        // Get access token from session
+        const accessToken = req.session.tokens.access_token;
+
+        // Fetch image directly from Google Drive API
+        const imageUrl = `https://www.googleapis.com/drive/v3/files/${googlePhotoId}?alt=media`;
+        const protocol = await import('https');
+
+        const imageBuffer = await new Promise((resolve, reject) => {
+            const options = {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            };
+
+            protocol.default.get(imageUrl, options, (response) => {
+                if (response.statusCode !== 200) {
+                    reject(new Error(`Failed to fetch image: ${response.statusCode}`));
+                    return;
+                }
+
+                const chunks = [];
+                response.on('data', (chunk) => chunks.push(chunk));
+                response.on('end', () => resolve(Buffer.concat(chunks)));
+                response.on('error', reject);
+            }).on('error', reject);
+        });
+
+        // Resize and compress like we do for uploads
+        const optimizedBuffer = await sharp(imageBuffer)
+            .resize({ width: 800, withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+
+        const base64Image = `data:image/jpeg;base64,${optimizedBuffer.toString("base64")}`;
 
         await saveUserMedia(userId, {
             type: "google_photos",
-            imageUrl: googleUrl, // This should be our proxy URL or a permanent link
+            imageUrl: base64Image,
             googlePhotoId,
             filename: filename || "google-photo.jpg",
-            mimeType: mimeType || "image/jpeg",
+            mimeType: "image/jpeg",
         });
 
         res.json({ ok: true });
@@ -91,6 +124,23 @@ router.get("/list", async (req, res) => {
     } catch (err) {
         console.error("Media List Error:", err);
         res.status(500).json({ error: "Failed to list media" });
+    }
+});
+
+// ----------------------------
+// DELETE /delete/:id - Delete media item
+// ----------------------------
+router.delete("/delete/:id", async (req, res) => {
+    try {
+        const userId = req.session?.profile?.sub;
+        if (!userId) return res.status(401).json({ error: "not_authed" });
+
+        const { id } = req.params;
+        await deleteUserMedia(userId, id);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("Media Delete Error:", err);
+        res.status(500).json({ error: "Failed to delete media" });
     }
 });
 

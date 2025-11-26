@@ -128,3 +128,12 @@ export async function getUserMedia(userId) {
     createdAt: d.data().createdAt?.toDate?.() ?? null,
   }));
 }
+
+export async function deleteUserMedia(userId, mediaId) {
+  await db
+    .collection("users")
+    .doc(userId)
+    .collection("media")
+    .doc(mediaId)
+    .delete();
+}

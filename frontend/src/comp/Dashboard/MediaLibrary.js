@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Page from '../Page';
-import { AiOutlineCloudUpload, AiOutlinePlus, AiOutlineCheck } from "react-icons/ai";
+import { AiOutlineCloudUpload, AiOutlinePlus, AiOutlineCheck, AiOutlineDelete } from "react-icons/ai";
 
 const MediaLibrary = ({ setView }) => {
     const [media, setMedia] = useState([]);
@@ -77,6 +77,27 @@ const MediaLibrary = ({ setView }) => {
         setView("create");
     };
 
+    const handleDelete = async (e, itemId) => {
+        e.stopPropagation(); // Prevent triggering image click
+        if (!window.confirm("Delete this image from your library?")) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/media/delete/${itemId}`, {
+                method: "DELETE",
+                credentials: "include"
+            });
+
+            if (res.ok) {
+                await fetchMedia(); // Refresh list
+            } else {
+                alert("Failed to delete");
+            }
+        } catch (err) {
+            console.error("Delete error:", err);
+            alert("Delete failed");
+        }
+    };
+
     return (
         <Page title="Media Library">
             <div className="flex items-center justify-between mb-6">
@@ -134,15 +155,15 @@ const MediaLibrary = ({ setView }) => {
                         <div
                             key={item.id}
                             className={`aspect-square rounded-2xl overflow-hidden relative group border cursor-pointer transition-all ${isSelected
-                                    ? "border-amber-400 ring-2 ring-amber-400/50 scale-95"
-                                    : "border-slate-800 bg-slate-900 hover:border-slate-600"
+                                ? "border-amber-400 ring-2 ring-amber-400/50 scale-95"
+                                : "border-slate-800 bg-slate-900 hover:border-slate-600"
                                 }`}
                             onClick={() => handleImageClick(item)}
                         >
                             <img
                                 src={item.imageUrl}
                                 alt={item.filename}
-                                className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
+                                className="w-full h-full object-contain transition duration-500 group-hover:scale-110"
                             />
 
                             {/* Selection Overlay */}
@@ -158,6 +179,17 @@ const MediaLibrary = ({ setView }) => {
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
                                     <p className="text-xs text-slate-300 truncate">{item.filename}</p>
                                 </div>
+                            )}
+
+                            {/* Delete Button */}
+                            {!isPickMode && (
+                                <button
+                                    onClick={(e) => handleDelete(e, item.id)}
+                                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Delete"
+                                >
+                                    <AiOutlineDelete size={16} />
+                                </button>
                             )}
                         </div>
                     );

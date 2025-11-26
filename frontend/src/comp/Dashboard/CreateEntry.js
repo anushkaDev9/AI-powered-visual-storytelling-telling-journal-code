@@ -105,14 +105,32 @@ const CreateEntry = ({ setView, setSharedImages }) => {
         formData.append("images", file);
       });
 
-      // Handle URL-based images (e.g. from Google Photos) that aren't in selectedFiles
+      // Handle URL-based images (e.g. from Google Photos or Media Library) that aren't in selectedFiles
       const remoteUrls = selectedPhotoUrls.filter(url => !url.startsWith('blob:'));
 
       for (const url of remoteUrls) {
-        const response = await fetch(url, { credentials: 'include' });
-        if (!response.ok) throw new Error("Failed to fetch one of the selected images");
-        const blob = await response.blob();
-        formData.append("images", blob, "imported-image.jpg");
+        try {
+          if (url.startsWith('data:')) {
+            // Handle base64 data URLs (from Media Library)
+            const response = await fetch(url);
+            const blob = await response.blob();
+            formData.append("images", blob, "media-library-image.jpg");
+          } else {
+            // Handle remote URLs (from Google Photos or proxy URLs)
+            const response = await fetch(url, { credentials: 'include' });
+            if (!response.ok) {
+              console.warn(`Failed to fetch image from ${url}, skipping...`);
+              alert(`Warning: One image could not be loaded (possibly an old Google Photos import). Continuing with other images...`);
+              continue; // Skip this image and continue with others
+            }
+            const blob = await response.blob();
+            formData.append("images", blob, "imported-image.jpg");
+          }
+        } catch (err) {
+          console.error(`Error fetching image from ${url}:`, err);
+          alert(`Warning: Could not load one of the images. Please try removing it and re-importing from Google Photos.`);
+          continue; // Skip this image
+        }
       }
 
       formData.append("perspective", selectedPerspective);
