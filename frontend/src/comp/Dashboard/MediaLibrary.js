@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Page from '../Page';
-import { AiOutlineCloudUpload, AiOutlinePlus } from "react-icons/ai";
+import { AiOutlineCloudUpload, AiOutlinePlus, AiOutlineCheck } from "react-icons/ai";
 
 const MediaLibrary = ({ setView }) => {
     const [media, setMedia] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [selectedItems, setSelectedItems] = useState([]); // Array of URLs
     const fileInputRef = useRef(null);
 
     const API_BASE = "http://localhost:3000";
+    const isPickMode = window.location.hash.includes("mode=pick");
 
     useEffect(() => {
         fetchMedia();
@@ -56,24 +58,44 @@ const MediaLibrary = ({ setView }) => {
     };
 
     const handleImageClick = (item) => {
-        const isPickMode = window.location.hash.includes("mode=pick");
-
         if (isPickMode) {
-            localStorage.setItem("pickedMediaUrl", item.imageUrl);
-            window.location.hash = ""; // Clear mode
-            setView("create");
+            setSelectedItems(prev => {
+                if (prev.includes(item.imageUrl)) {
+                    return prev.filter(url => url !== item.imageUrl);
+                } else {
+                    return [...prev, item.imageUrl];
+                }
+            });
         }
+    };
+
+    const handleDonePicking = () => {
+        if (selectedItems.length > 0) {
+            localStorage.setItem("pickedMediaUrls", JSON.stringify(selectedItems));
+        }
+        window.location.hash = ""; // Clear mode
+        setView("create");
     };
 
     return (
         <Page title="Media Library">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-3xl font-semibold text-slate-100">
-                    {window.location.hash.includes("mode=pick") ? "Pick a Photo" : "Media Library"}
+                    {isPickMode ? "Pick Photos" : "Media Library"}
                 </h2>
-                <button onClick={() => setView("dashboard")} className="text-slate-300 hover:text-amber-200">
-                    Back to Dashboard
-                </button>
+                <div className="flex gap-3">
+                    {isPickMode && (
+                        <button
+                            onClick={handleDonePicking}
+                            className="bg-amber-400 text-slate-900 px-4 py-2 rounded-full font-semibold hover:bg-amber-300 transition"
+                        >
+                            Done ({selectedItems.length})
+                        </button>
+                    )}
+                    <button onClick={() => setView("dashboard")} className="text-slate-300 hover:text-amber-200 px-3 py-2">
+                        {isPickMode ? "Cancel" : "Back to Dashboard"}
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -106,22 +128,40 @@ const MediaLibrary = ({ setView }) => {
                 </div>
 
                 {/* Media Items */}
-                {media.map((item) => (
-                    <div
-                        key={item.id}
-                        className="aspect-square rounded-2xl overflow-hidden relative group border border-slate-800 bg-slate-900 cursor-pointer"
-                        onClick={() => handleImageClick(item)}
-                    >
-                        <img
-                            src={item.imageUrl}
-                            alt={item.filename}
-                            className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                            <p className="text-xs text-slate-300 truncate">{item.filename}</p>
+                {media.map((item) => {
+                    const isSelected = selectedItems.includes(item.imageUrl);
+                    return (
+                        <div
+                            key={item.id}
+                            className={`aspect-square rounded-2xl overflow-hidden relative group border cursor-pointer transition-all ${isSelected
+                                    ? "border-amber-400 ring-2 ring-amber-400/50 scale-95"
+                                    : "border-slate-800 bg-slate-900 hover:border-slate-600"
+                                }`}
+                            onClick={() => handleImageClick(item)}
+                        >
+                            <img
+                                src={item.imageUrl}
+                                alt={item.filename}
+                                className="w-full h-full object-cover transition duration-500 group-hover:scale-110"
+                            />
+
+                            {/* Selection Overlay */}
+                            {isSelected && (
+                                <div className="absolute inset-0 bg-amber-400/20 flex items-center justify-center">
+                                    <div className="bg-amber-400 text-slate-900 rounded-full p-2">
+                                        <AiOutlineCheck size={20} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isSelected && (
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                                    <p className="text-xs text-slate-300 truncate">{item.filename}</p>
+                                </div>
+                            )}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {loading && (
                     <div className="col-span-full text-center py-10 text-slate-500">Loading media...</div>

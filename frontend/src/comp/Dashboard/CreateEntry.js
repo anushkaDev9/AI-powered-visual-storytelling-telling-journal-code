@@ -31,6 +31,19 @@ const CreateEntry = ({ setView, setSharedImages }) => {
       setSelectedPhotoUrls(prev => [...prev, savedMedia]);
       localStorage.removeItem("pickedMediaUrl"); // Clear after use
     }
+
+    const savedMediaList = localStorage.getItem("pickedMediaUrls");
+    if (savedMediaList) {
+      try {
+        const urls = JSON.parse(savedMediaList);
+        if (Array.isArray(urls)) {
+          setSelectedPhotoUrls(prev => [...prev, ...urls]);
+        }
+      } catch (e) {
+        console.error("Failed to parse picked media", e);
+      }
+      localStorage.removeItem("pickedMediaUrls");
+    }
   }, []);
 
   // Import from device
