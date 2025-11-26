@@ -6,7 +6,7 @@ const CreateEntry = ({ setView, setSharedImages }) => {
   const [selectedPhotoUrls, setSelectedPhotoUrls] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false); // Add loading state
-  // ⭐ NEW: story line count instead of prompt
+  //  NEW: story line count instead of prompt
   const [lineCount, setLineCount] = useState(10);
   const [context, setContext] = useState("");
 
@@ -82,7 +82,7 @@ const CreateEntry = ({ setView, setSharedImages }) => {
     }
   };
 
-  // ⭐ Send to backend
+  //  Send to backend
   const sendToBackend = async () => {
     // Check if we have any images
     if (selectedPhotoUrls.length === 0) {
@@ -337,7 +337,7 @@ const CreateEntry = ({ setView, setSharedImages }) => {
             ))}
           </div>
 
-          {/* ⭐ NEW — Line Count Input */}
+          {/*  NEW — Line Count Input */}
           <div className="mt-8">
             <p className="text-sm text-slate-300 mb-2">How many lines should the story be?</p>
 
@@ -351,7 +351,7 @@ const CreateEntry = ({ setView, setSharedImages }) => {
             />
           </div>
 
-          {/* ⭐ NEW — Context / Keywords Input */}
+          {/*  NEW — Context / Keywords Input */}
           <div className="mt-6">
             <p className="text-sm text-slate-300 mb-2">Add Context or Keywords (Optional)</p>
             <textarea
