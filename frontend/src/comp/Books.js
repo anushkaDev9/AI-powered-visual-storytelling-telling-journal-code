@@ -44,21 +44,20 @@ export default function Books({ setView, profile }) {
     // … your existing "not authed" UI here …
     // (unchanged block)
   }
-
   // signed in
   return (
     <Page title="My books">
       {/* existing signed-in header block remains unchanged */}
-
       {loading ? (
         <div className="h-40 grid place-items-center text-slate-400 animate-pulse">
           Loading your stories…
-        </div>
-      ) : stories.length === 0 ? (
+        </div> { 
+      ) : stories.length === 0 ? ( {/* checks if stories is zero adn creates your first one */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center text-slate-400">
           No stories yet. Create your first one!
         </div>
       ) : (
+        {/* checks if stories is more than zero and gets the stories from firestore */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {stories.map((s) => {
             const imagesToShow = s.images && s.images.length > 0 ? s.images : [s.image];
@@ -85,10 +84,8 @@ export default function Books({ setView, profile }) {
                     />
                   )}
                 </div>
-
-
                 <button
-                  onClick={() => setView("viewer", s)}   // 👈 pass the story object
+                  onClick={() => setView("viewer", s)}   //  pass the story object
                   className="mt-4 w-full rounded-full bg-amber-400 text-slate-900 px-5 py-2 font-semibold"
                 >
                   View
