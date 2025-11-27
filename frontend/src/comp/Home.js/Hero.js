@@ -11,7 +11,7 @@ const Hero = ({ view, setView }) => {
               Turn your photos into
               <br />
               <span className="text-amber-200">AI-powered Stories</span>
-              <br /> or journal
+              <br /> 
             </h1>
             <p className="mt-6 text-slate-300 max-w-xl">
               Import your memories and let AI craft them into visual narratives.
@@ -25,12 +25,6 @@ const Hero = ({ view, setView }) => {
                 className="rounded-full bg-amber-400 text-slate-900 px-6 py-3 font-semibold shadow hover:bg-amber-300 transition cursor-pointer"
               >
                 Get Started
-              </button>
-              <button
-                onClick={() => setView("books")}
-                className="rounded-full border border-slate-700 px-6 py-3 font-semibold text-slate-200 hover:bg-slate-800 transition cursor-pointer"
-              >
-                View Storybooks
               </button>
             </div>
           </div>
