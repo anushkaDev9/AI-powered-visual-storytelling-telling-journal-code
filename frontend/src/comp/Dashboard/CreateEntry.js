@@ -293,9 +293,7 @@ const CreateEntry = ({ setView, setSharedImages }) => {
             </div>
 
             {/* Debug info */}
-            {selectedPhotoUrls.length > 0 && (
-              <div className="mt-2 text-xs text-slate-400">
-                {selectedFiles.length} files selected.
+           
               </div>
             )}
           </div>
