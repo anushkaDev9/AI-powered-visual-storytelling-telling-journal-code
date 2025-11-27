@@ -8,7 +8,7 @@ const Works = () => {
     const steps = [
     { title: "Import photos", icon:<GrGallery />  ,desc: "Connect Google Photos or Pinterest via secure OAuth." },
     { title: "AI Vision Analysis",icon:<FiPenTool />, desc: "Detect scenes, objects, and emotions from photos." },
-    { title: "Gemini Story Generation",icon:<PiStarFourDuotone />, desc: "Transform insights into creative stories or journal entries." },
+    { title: "Gemini Story Generation",icon:<PiStarFourDuotone />, desc: "Transform insights into creative stories  entries." },
     { title: "Save & Revisit",icon:<IoBook />, desc: "Your storybooks are saved and ready to share anytime." },
   ];
   return (
