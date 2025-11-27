@@ -1,39 +1,9 @@
 import React from "react";
 import Page from "./Page";
-import { useState } from "react";
+import { FaFacebookF } from "react-icons/fa";
+import { FaLinkedinIn } from "react-icons/fa";
+import { FaInstagram } from "react-icons/fa6";
 const Viewer = ({ setView, story }) => {
-  // Viewer.js
-  const shareText = encodeURIComponent(story.narrative || "Check out my AI-generated story!");
-  const shareUrl = encodeURIComponent(window.location.href);
-
-  const socialLinks = {
-    twitter: `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
-    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`,
-    whatsapp: `https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}`,
-  };
-
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this story?")) return;
-
-    try {
-      const res = await fetch(`http://localhost:3000/api/story/${story.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        alert("Story deleted successfully!");
-        setView("books"); // navigate back to book list
-      } else {
-        alert("Failed to delete story.");
-      }
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert("Error deleting story.");
-    }
-  };
-
   if (!story) {
     return (
       <Page title="Viewer">
@@ -52,10 +22,57 @@ const Viewer = ({ setView, story }) => {
     );
   }
 
+  // Share data
+  const shareText = encodeURIComponent(
+    story.narrative || "Check out my AI-generated story!"
+  );
+  const shareUrl = encodeURIComponent(window.location.href);
+
+  const socialLinks = {
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`,
+  };
+
+  // Instagram (manual share)
+  const shareToInstagram = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `${story.narrative || "Check out my AI-generated story!"}\n${window.location.href}`
+      );
+      alert("Story copied! Open Instagram and paste it into your post or story.");
+      window.open("https://www.instagram.com", "_blank");
+    } catch (err) {
+      console.error("Instagram share error:", err);
+      alert("Could not copy text for Instagram.");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this story?")) return;
+
+    try {
+      const res = await fetch(`http://localhost:3000/api/story/${story.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        alert("Story deleted successfully!");
+        setView("books");
+      } else {
+        alert("Failed to delete story.");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Error deleting story.");
+    }
+  };
+
   // Determine images to show
-  const imagesToShow = story.images && story.images.length > 0
-    ? story.images
-    : [story.image || require("../Images/book_image.PNG")];
+  const imagesToShow =
+    story.images && story.images.length > 0
+      ? story.images
+      : [story.image || require("../Images/book_image.PNG")];
 
   return (
     <Page title="Viewer">
@@ -70,65 +87,48 @@ const Viewer = ({ setView, story }) => {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
+        
         {/* Image + Share section */}
         <div className="rounded-2xl ring-1 ring-slate-800 p-8 bg-slate-900/60 flex flex-col items-center justify-center text-center space-y-6">
 
           {/* Image Grid */}
-          <div className={`grid gap-4 w-full ${imagesToShow.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div
+            className={`grid gap-4 w-full ${
+              imagesToShow.length > 1 ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
             {imagesToShow.map((imgSrc, idx) => (
               <img
                 key={idx}
                 src={imgSrc}
                 alt={`Story illustration ${idx + 1}`}
-                className={`w-full object-cover rounded-xl shadow-lg ${imagesToShow.length === 1 ? 'max-w-sm h-64 mx-auto' : 'h-40'}`}
+                className={`w-full object-cover rounded-xl shadow-lg ${
+                  imagesToShow.length === 1 ? "max-w-sm h-64 mx-auto" : "h-40"
+                }`}
               />
             ))}
           </div>
 
-          {/* Share buttons */}
-          <div className="flex flex-wrap justify-center gap-3">
-            <a
-              href={socialLinks.twitter} {/* Twitter button*/}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
-            >
-              <i className="fa-brands fa-twitter"></i> Twitter
-            </a>
+          {/* share Icon Button */}
+          <div className="flex flex-wrap justify-center gap-4 mt-4">
 
-            <a
-              href={socialLinks.facebook} {/* facebook button */}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
+            {/* Instagram */}
+            <button
+              onClick={shareToInstagram}
+              className="group flex items-center gap-3 px-5 py-2.5 rounded-full 
+                        bg-slate-800/40 backdrop-blur-md border border-slate-700/50
+                        hover:bg-slate-700/50 hover:scale-105 transition-all duration-300
+                        text-white shadow-lg"
             >
-              <i className="fa-brands fa-facebook-f"></i> Facebook
-            </a>
+              <span className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-500 to-pink-700 
+                                flex items-center justify-center shadow-md">
+               <FaInstagram />
+              </span>
+              <span className="font-medium">Instagram</span>
+            </button>
 
-            <a
-              href={socialLinks.linkedin}{ /*Linkedln button*/}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-blue-800 hover:bg-blue-900 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
-            >
-              <i className="fa-brands fa-linkedin-in"></i> LinkedIn
-            </a>
-
-            <a
-              href={socialLinks.instagram} { /*Instagram button*/}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-pink-500 hover:bg-pink-600 text-white px-3 py-1.5 text-sm font-medium shadow-sm transition-transform hover:scale-105"
-            >
-              <i className="fa-brands fa-instagram"></i> Instagram
-            </a>
           </div>
-
         </div>
-
-
-
-
 
         {/* Text + Buttons */}
         <div className="rounded-2xl ring-1 ring-slate-800 bg-slate-900/60 p-6 flex flex-col">
@@ -139,26 +139,26 @@ const Viewer = ({ setView, story }) => {
           <div className="mt-auto pt-6 flex flex-wrap gap-3">
             <button
               onClick={() => {
-                // Store the DB values so Compose can pick them up
-                if (story?.image) localStorage.setItem("SHARED_IMAGE_DATAURL", story.image);
-                if (story?.narrative) localStorage.setItem("AI_NARRATIVE", story.narrative);
+                if (story?.image)
+                  localStorage.setItem("SHARED_IMAGE_DATAURL", story.image);
+                if (story?.narrative)
+                  localStorage.setItem("AI_NARRATIVE", story.narrative);
                 setView("compose");
               }}
               className="inline-flex items-center gap-2 rounded-full bg-amber-400 text-slate-900 px-5 py-2 font-semibold"
             >
               Regenerate
             </button>
+
             <button
               onClick={handleDelete}
               className="inline-flex items-center gap-2 rounded-full bg-slate-800 text-slate-200 px-5 py-2 font-semibold"
             >
               Delete
             </button>
-
-
-
           </div>
         </div>
+
       </div>
     </Page>
   );
