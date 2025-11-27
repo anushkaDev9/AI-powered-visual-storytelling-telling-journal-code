@@ -29,10 +29,10 @@ const Header = ({ view, setView, profile, setProfile }) => {
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between text-slate-100">
         {/* Logo + Name */}
         <div onClick={() => setView("home")} className="flex items-center gap-3 cursor-pointer">
-          <div className="h-9 w-9 rounded-xl bg-amber-400/15 border border-amber-300/30 grid place-items-center">
-            <GiSpellBook />
-          </div>
-          <span className="font-semibold text-lg">AIVision Journal</span>
+          
+            <GiSpellBook className='text-[50px]'/>
+    
+          <span className="font-semibold text-xl">AI Vision Story</span>
         </div>
         {/* Nav */}
         <nav className="hidden sm:flex items-center gap-7">
